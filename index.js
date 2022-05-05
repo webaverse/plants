@@ -1,7 +1,7 @@
 // import * as THREE from 'three';
 // import easing from './easing.js';
 import metaversefile from 'metaversefile';
-const {useApp, useFrame, useLoaders, usePhysics, useMeshLodder, useCleanup} = metaversefile;
+const {useApp, useFrame, useActivate, useLoaders, usePhysics, useMeshLodder, useCleanup} = metaversefile;
 
 const baseUrl = import.meta.url.replace(/(\/)[^\/\\]*$/, '$1');
 const glbUrls = [
@@ -81,6 +81,11 @@ export default () => {
   chunksObject.updateMatrixWorld();
 
   app.getPhysicsObjects = () => meshLodder.getPhysicsObjects();
+
+  useActivate(e => {
+    const item = meshLodder.getItemByPhysicsId(e.physicsId);
+    meshLodder.deleteItem(item);
+  });
 
   useFrame(() => {
     meshLodder.update();
