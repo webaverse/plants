@@ -27,7 +27,6 @@ export default () => {
   const meshLodder = new MeshLodder();
 
   const lods = {};
-  let physicsIds = [];
   (async () => {
     await Promise.all(glbUrls.map(async glbUrl => {
       const u = glbUrl;
@@ -38,24 +37,35 @@ export default () => {
       o = o.scene;
       o.updateMatrixWorld();
 
+      const meshes = [];
       o.traverse(o => {
         if (o.isMesh) {
-          const match = o.name.match(/^(.+)_LOD([012])$/);
-          if (match) {
-            const name = match[1];
-            const index = parseInt(match[2], 10);
-
-            let ls = lods[name];
-            if (!ls) {
-              ls = Array(3).fill(null);
-              lods[name] = ls;
-            }
-            ls[index] = o;
-          }
+          meshes.push(o);
         }
       });
+      for (const o of meshes) {
+        const match = o.name.match(/^(.+)_LOD([012])$/);
+        if (match) {
+          const name = match[1];
+          const index = parseInt(match[2], 10);
 
-      // app.add(o);
+          o.geometry.applyMatrix(o.matrixWorld);
+          o.parent.remove(o);
+
+          o.position.set(0, 0, 0);
+          o.quaternion.identity();
+          o.scale.set(1, 1, 1);
+          o.matrix.identity();
+          o.matrixWorld.identity();
+
+          let ls = lods[name];
+          if (!ls) {
+            ls = Array(3).fill(null);
+            lods[name] = ls;
+          }
+          ls[index] = o;
+        }
+      }
     }));
 
     // console.log('got lods', lods);
@@ -70,11 +80,14 @@ export default () => {
   app.add(chunksObject);
   chunksObject.updateMatrixWorld();
 
+  app.getPhysicsObjects = () => meshLodder.getPhysicsObjects();
+
   useFrame(() => {
     meshLodder.update();
   });
   
   useCleanup(() => {
+    const physicsIds = meshLodder.getPhysicsObjects();
     for (const physicsId of physicsIds) {
       physics.removeGeometry(physicsId);
     }
