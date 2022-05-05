@@ -1,5 +1,4 @@
 // import * as THREE from 'three';
-// import easing from './easing.js';
 import metaversefile from 'metaversefile';
 const {useApp, useFrame, useActivate, useLoaders, usePhysics, useMeshLodder, useCleanup} = metaversefile;
 
@@ -8,14 +7,6 @@ const glbUrls = [
   `${baseUrl}plants.glb`,
   `${baseUrl}rocks.glb`,
 ];
-
-/* const _makeLodArray = () => {
-  const lods = Array(3);
-  for (let i = 0; i < 3; i++) {
-    lods[i] = [];
-  };
-  return lods;
-}; */
 
 export default () => {
   const app = useApp();
@@ -68,7 +59,6 @@ export default () => {
       }
     }));
 
-    // console.log('got lods', lods);
     for (const name in lods) {
       const ls = lods[name];
       meshLodder.registerLodMesh(name, ls);
