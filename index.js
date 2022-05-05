@@ -49,7 +49,7 @@ export default () => {
           const name = match[1];
           const index = parseInt(match[2], 10);
 
-          o.geometry.applyMatrix(o.matrixWorld);
+          o.geometry.applyMatrix4(o.matrixWorld);
           o.parent.remove(o);
 
           o.position.set(0, 0, 0);
