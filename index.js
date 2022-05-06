@@ -11,11 +11,11 @@ const glbUrls = [
 export default () => {
   const app = useApp();
   const physics = usePhysics();
-  const MeshLodder = useMeshLodder();
+  const meshLodManager = useMeshLodder();
 
   app.name = 'plants';
 
-  const meshLodder = new MeshLodder();
+  const meshLodder = meshLodManager.createMeshLodder();
 
   const lods = {};
   (async () => {
@@ -74,6 +74,7 @@ export default () => {
 
   useActivate(e => {
     const item = meshLodder.getItemByPhysicsId(e.physicsId);
+    const itemMesh = item.cloneApp();
     meshLodder.deleteItem(item);
   });
 
