@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import metaversefile from 'metaversefile';
-const {useApp, useFrame, useActivate, useLoaders, usePhysics, useMeshLodder, useCleanup, useWorld, useDefaultModules, createApp} = metaversefile;
+const {useApp, useFrame, useActivate, useLoaders, usePhysics, useMeshLodder, useCleanup, useWorld} = metaversefile;
 // import * as metaverseModules from './metaverse-modules.js';
 
 const baseUrl = import.meta.url.replace(/(\/)[^\/\\]*$/, '$1');
@@ -19,7 +19,6 @@ export default () => {
   const world = useWorld();
   const physics = usePhysics();
   const meshLodManager = useMeshLodder();
-  // const scene = useScene();
 
   app.name = 'plants';
 
@@ -78,8 +77,6 @@ export default () => {
   app.add(chunksObject);
   chunksObject.updateMatrixWorld();
 
-  app.getPhysicsObjects = () => meshLodder.getPhysicsObjects();
-
   const _loadMeshLodApp = async ({
     position,
     quaternion,
@@ -106,6 +103,8 @@ export default () => {
     return app;
   };
 
+  const itemApps = [];
+
   useActivate(e => {
     const item = meshLodder.getItemByPhysicsId(e.physicsId);
     localMatrix.compose(item.position, item.quaternion, item.scale)
@@ -116,38 +115,20 @@ export default () => {
     const scale = localVector2;
 
     (async () => {
-      const meshLodItemApp = await _loadMeshLodApp({
+      const itemApp = await _loadMeshLodApp({
         position,
         quaternion,
         scale,
         meshLodderId: meshLodder.id,
         physicsId: e.physicsId,
       });
-      /* console.log('mesh lod item app', meshLodItemApp, {
-        position: position.toArray().join(','),
-        quaternion: quaternion.toArray().join(','),
-        scale: scale.toArray().join(','),
-      }); */
+      itemApps.push(itemApp);
 
       meshLodder.deleteItem(item);
     })();
-    /* {
-      const meshLodItemApp = createApp();
-      meshLodItemApp.setComponents({
-        meshLodderId: meshLodder.id,
-        physicsId: e.physicsId,
-      });
-      (async () => {
-        const {modules} = useDefaultModules();
-        const m = modules['meshLodItem'];
-        await meshLodItemApp.addModule(m);
-
-        app.add(meshLodItemApp);
-
-        meshLodder.deleteItem(item);
-      })();
-    } */
   });
+
+  app.getPhysicsObjects = () => meshLodder.getPhysicsObjects();
 
   useFrame(() => {
     meshLodder.update();
