@@ -98,6 +98,26 @@ export default () => {
           key: 'physicsId',
           value: physicsId,
         },
+        {
+          key: 'wear',
+          value: {
+            "boneAttachment": "leftHand",
+            "position": [-0.05, -0.1, -0.05],
+            "quaternion": [0.7071067811865475, 0, 0, 0.7071067811865476],
+            "scale": [1, 1, 1],
+            "grabAnimation": "pick_up",
+          }
+        }, /* {
+          key: 'use',
+          'value': {
+            "animation": "eat",
+            "behavior": "eat",
+            "boneAttachment": "leftHand",
+            "position": [-0.05, -0.1, -0.05],
+            "quaternion": [0.7071067811865475, 0, 0, 0.7071067811865476],
+            "scale": [1, 1, 1]
+          }
+        }, */
       ],
     );
     return app;
