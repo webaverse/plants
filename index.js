@@ -108,7 +108,6 @@ export default () => {
 
   useActivate(e => {
     const item = meshLodder.getItemByPhysicsId(e.physicsId);
-    // const {position, quaternion, scale} = item;
     localMatrix.compose(item.position, item.quaternion, item.scale)
       .premultiply(app.matrixWorld)
       .decompose(localVector, localQuaternion, localVector2);
@@ -124,16 +123,15 @@ export default () => {
         meshLodderId: meshLodder.id,
         physicsId: e.physicsId,
       });
-      console.log('mesh lod item app', meshLodItemApp, {
+      /* console.log('mesh lod item app', meshLodItemApp, {
         position: position.toArray().join(','),
         quaternion: quaternion.toArray().join(','),
         scale: scale.toArray().join(','),
-      });
+      }); */
 
       meshLodder.deleteItem(item);
     })();
     /* {
-      // XXX this should be a tracked app
       const meshLodItemApp = createApp();
       meshLodItemApp.setComponents({
         meshLodderId: meshLodder.id,
