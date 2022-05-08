@@ -106,6 +106,7 @@ export default () => {
             "quaternion": [0, 0, 0, 1],
             "scale": [1, 1, 1],
             "grabAnimation": "pick_up",
+            "holdAnimation": "pick_up_idle",
           }
         },
         {
