@@ -4,9 +4,19 @@ const {useApp, useFrame, useActivate, useLoaders, usePhysics, useMeshLodder, use
 // import * as metaverseModules from './metaverse-modules.js';
 
 const baseUrl = import.meta.url.replace(/(\/)[^\/\\]*$/, '$1');
-const glbUrls = [
-  `${baseUrl}plants.glb`,
-  `${baseUrl}rocks.glb`,
+const glbSpecs = [
+  /* {
+    type: 'object',
+    url: `${baseUrl}plants.glb`,
+  },
+  {
+    type: 'object',
+    url: `${baseUrl}rocks.glb`,
+  }, */
+  {
+    type: 'plant',
+    url: `${baseUrl}trees.glb`,
+  },
 ];
 
 const localVector = new THREE.Vector3();
@@ -24,10 +34,11 @@ export default () => {
 
   const meshLodder = meshLodManager.createMeshLodder();
 
-  const lods = {};
+  const specs = {};
   (async () => {
-    await Promise.all(glbUrls.map(async glbUrl => {
-      const u = glbUrl;
+    await Promise.all(glbSpecs.map(async glbSpec => {
+      const {type, url} = glbSpec;
+      const u = url;
       let o = await new Promise((accept, reject) => {
         const {gltfLoader} = useLoaders();
         gltfLoader.load(u, accept, function onprogress() {}, reject);
@@ -56,19 +67,23 @@ export default () => {
           o.matrix.identity();
           o.matrixWorld.identity();
 
-          let ls = lods[name];
-          if (!ls) {
-            ls = Array(3).fill(null);
-            lods[name] = ls;
+          let spec = specs[name];
+          if (!spec) {
+            spec = {
+              type,
+              lods: Array(3).fill(null),
+            };
+            specs[name] = spec;
           }
-          ls[index] = o;
+          spec.lods[index] = o;
         }
       }
     }));
 
-    for (const name in lods) {
-      const ls = lods[name];
-      meshLodder.registerLodMesh(name, ls);
+    for (const name in specs) {
+      const spec = specs[name];
+      // console.log('register spec', name, spec);
+      meshLodder.registerLodMesh(name, spec);
     }
     meshLodder.compile();
   })();
