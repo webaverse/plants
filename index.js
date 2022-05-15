@@ -143,8 +143,10 @@ export default () => {
   const itemApps = [];
 
   useActivate(e => {
-    const item = meshLodder.getItemByPhysicsId(e.physicsId);
-    localMatrix.compose(item.position, item.quaternion, item.scale)
+    // const itemId = meshLodder.getItemIdByPhysicsId(e.physicsId);
+    const itemId = e.physicsId;
+    meshLodder.getItemTransformByItemId(itemId, localVector, localQuaternion, localVector2);
+    localMatrix.compose(localVector, localQuaternion, localVector2)
       .premultiply(app.matrixWorld)
       .decompose(localVector, localQuaternion, localVector2);
     const position = localVector;
@@ -161,7 +163,7 @@ export default () => {
       });
       itemApps.push(itemApp);
 
-      meshLodder.deleteItem(item);
+      meshLodder.deleteItem(itemId);
     })();
   });
 
@@ -172,10 +174,7 @@ export default () => {
   });
   
   useCleanup(() => {
-    const physicsIds = meshLodder.getPhysicsObjects();
-    for (const physicsId of physicsIds) {
-      physics.removeGeometry(physicsId);
-    }
+    meshLodder.destroy();
   });
 
   return app;
