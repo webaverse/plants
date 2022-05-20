@@ -116,9 +116,9 @@ export default () => {
         {
           key: 'wear',
           value: {
-            "boneAttachment": "head",
-            "position": [0, 0.3, 0],
-            "quaternion": [0, 0, 0, 1],
+            "boneAttachment": ["leftHand", "rightHand"],
+            "position": [0, 0.1, 0],
+            "quaternion": "upVectorHipsToPosition",
             "scale": [1, 1, 1],
             "grabAnimation": "pick_up",
             "holdAnimation": "pick_up_idle",
@@ -129,9 +129,9 @@ export default () => {
           value: {
             "animation": "pickUpThrow",
             "behavior": "throw",
-            "boneAttachment": "head",
-            "position": [0, 0.3, 0],
-            "quaternion": [0, 0, 0, 1],
+            "boneAttachment": ["leftHand", "rightHand"],
+            "position": [0, 0.1, 0],
+            "quaternion": "upVectorHipsToPosition",
             "scale": [1, 1, 1],
           },
         },
