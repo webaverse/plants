@@ -1,6 +1,11 @@
 import * as THREE from 'three';
 import metaversefile from 'metaversefile';
-const {useApp, useProcGen, useLocalPlayer, useFrame, useActivate, useLoaders, useMeshLodder, useMeshes, useCleanup, useWorld, useLodder, useDcWorkerManager, useGeometryAllocators, useMaterials} = metaversefile;
+const {useApp, usePhysics, useLocalPlayer, useFrame, useActivate, useLoaders, useMeshLodder, useMeshes, useCleanup, useWorld, useLodder, useDcWorkerManager, useGeometryAllocators, useMaterials} = metaversefile;
+
+const localVector = new THREE.Vector3();
+const localVector2 = new THREE.Vector3();
+const localQuaternion = new THREE.Quaternion();
+const localMatrix = new THREE.Matrix4();
 
 const baseUrl = import.meta.url.replace(/(\/)[^\/\\]*$/, '$1');
 const glbSpecs = [
@@ -31,7 +36,9 @@ const geometryAttributeKeys = ['position', 'normal', 'uv'];
 const {BatchedMesh} = useMeshes();
 class VegetationMesh extends BatchedMesh {
   constructor({
-    meshes = [],
+    lodMeshes = [],
+    shapeAddresses = [],
+    physics = null,
   } = {}) {
     const {InstancedGeometryAllocator} = useGeometryAllocators();
 
@@ -39,8 +46,8 @@ class VegetationMesh extends BatchedMesh {
 
     const {generateTextureAtlas, mapWarpedUvs, defaultTextureSize} = useMeshLodder();
     const textureSpecs = {
-      map: meshes.map(m => m.material.map),
-      normalMap: meshes.map(m => m.material.normalMap),
+      map: lodMeshes.map(lods => lods[0].material.map),
+      normalMap: lodMeshes.map(lods => lods[0].material.normalMap),
     };
     const {
       atlas,
@@ -52,9 +59,10 @@ class VegetationMesh extends BatchedMesh {
 
     // geometry
 
-    const geometries = meshes.map(m => m.geometry);
-    for (let i = 0; i < geometries.length; i++) {
-      const srcGeometry = geometries[i];
+    const lod0Geometries = lodMeshes.map(lods => lods[0].geometry);
+    // const lodLastGeometries = lodMeshes.map(lods => lods.findLast(lod => lod !== null));
+    for (let i = 0; i < lod0Geometries.length; i++) {
+      const srcGeometry = lod0Geometries[i];
 
       const geometry = new THREE.BufferGeometry();
       for (const k of geometryAttributeKeys) {
@@ -74,10 +82,12 @@ class VegetationMesh extends BatchedMesh {
 
       mapWarpedUvs(geometry.attributes.uv, 0, geometry.attributes.uv, 0, tx, ty, tw, th, canvasSize);
     
-      geometries[i] = geometry;
+      lod0Geometries[i] = geometry;
     }
 
-    const allocator = new InstancedGeometryAllocator(geometries, [
+    // allocator
+
+    const allocator = new InstancedGeometryAllocator(lod0Geometries, [
       {
         name: 'p',
         Type: Float32Array,
@@ -172,8 +182,11 @@ vec4 q = texture2D(qTexture, pUv).xyzw;
 
     super(geometry, material, allocator);
     this.frustumCulled = false;
-
-    this.meshes = meshes;
+    
+    this.meshes = lodMeshes;
+    this.shapeAddresses = shapeAddresses;
+    this.physics = physics;
+    this.physicsObjects = [];
   }
   async addChunk(chunk, {
     signal,
@@ -194,25 +207,39 @@ vec4 q = texture2D(qTexture, pUv).xyzw;
       if (!live) return;
 
       const _renderVegetationGeometry = (drawCall, ps, qs, index) => {
+        // geometry
+        
         const pTexture = drawCall.getTexture('p');
         const pOffset = drawCall.getTextureOffset('p');
         const qTexture = drawCall.getTexture('q');
         const qOffset = drawCall.getTextureOffset('q');
 
         const instanceCount = drawCall.getInstanceCount();
-        pTexture.image.data[pOffset + instanceCount * 3] = ps[index * 3];
-        pTexture.image.data[pOffset + instanceCount * 3 + 1] = ps[index * 3 + 1];
-        pTexture.image.data[pOffset + instanceCount * 3 + 2] = ps[index * 3 + 2];
+        const px = ps[index * 3];
+        const py = ps[index * 3 + 1];
+        const pz = ps[index * 3 + 2];
+        pTexture.image.data[pOffset + instanceCount * 3] = px;
+        pTexture.image.data[pOffset + instanceCount * 3 + 1] = py;
+        pTexture.image.data[pOffset + instanceCount * 3 + 2] = pz;
 
-        qTexture.image.data[qOffset + instanceCount * 4] = qs[index * 4];
-        qTexture.image.data[qOffset + instanceCount * 4 + 1] = qs[index * 4 + 1];
-        qTexture.image.data[qOffset + instanceCount * 4 + 2] = qs[index * 4 + 2];
-        qTexture.image.data[qOffset + instanceCount * 4 + 3] = qs[index * 4 + 3];
+        const qx = qs[index * 4];
+        const qy = qs[index * 4 + 1];
+        const qz = qs[index * 4 + 2];
+        const qw = qs[index * 4 + 3];
+        qTexture.image.data[qOffset + instanceCount * 4] = qx;
+        qTexture.image.data[qOffset + instanceCount * 4 + 1] = qy;
+        qTexture.image.data[qOffset + instanceCount * 4 + 2] = qz;
+        qTexture.image.data[qOffset + instanceCount * 4 + 3] = qw;
 
         drawCall.updateTexture('p', pOffset, ps.length);
         drawCall.updateTexture('q', qOffset, qs.length);
 
         drawCall.incrementInstanceCount();
+
+        // physics
+        const shapeAddress = this.#getShapeAddress(drawCall.geometryIndex);
+        const physicsObject = this.#addPhysicsShape(shapeAddress, px, py, pz, qx, qy, qz, qw);
+        this.physicsObjects.push(physicsObject);
       };
 
       const drawCalls = new Map();
@@ -235,8 +262,32 @@ vec4 q = texture2D(qTexture, pUv).xyzw;
       });
     }
   }
+  #getShapeAddress(geometryIndex) {
+    return this.shapeAddresses[geometryIndex];
+  }
+  #addPhysicsShape(shapeAddress, px, py, pz, qx, qy, qz, qw) {    
+    localVector.set(px, py, pz);
+    localQuaternion.set(qx, qy, qz, qw);
+    localVector2.set(1, 1, 1);
+    localMatrix.compose(localVector, localQuaternion, localVector2)
+      .premultiply(this.matrixWorld)
+      .decompose(localVector, localQuaternion, localVector2);
+
+    // const matrixWorld = _getMatrixWorld(this.mesh, contentMesh, localMatrix, positionX, positionZ, rotationY);
+    // matrixWorld.decompose(localVector, localQuaternion, localVector2);
+    const position = localVector;
+    const quaternion = localQuaternion;
+    const scale = localVector2;
+    const dynamic = false;
+    const external = true;
+    const physicsObject = this.physics.addConvexShape(shapeAddress, position, quaternion, scale, dynamic, external);
+  
+    this.physicsObjects.push(physicsObject);
+
+    return physicsObject;
+  }
   getPhysicsObjects() {
-    return []; // XXX bugfix physics support
+    return this.physicsObjects;
   }
   update() {
     // nothing
@@ -245,14 +296,18 @@ vec4 q = texture2D(qTexture, pUv).xyzw;
 
 class VegetationChunkGenerator {
   constructor(parent, {
-    meshes = [],
+    lodMeshes = [],
+    shapeAddresses = [],
+    physics = null,
   } = {}) {
     // parameters
     this.parent = parent;
 
     // mesh
     this.mesh = new VegetationMesh({
-      meshes,
+      lodMeshes,
+      shapeAddresses,
+      physics,
     });
   }
   getChunks() {
@@ -291,7 +346,7 @@ class VegetationChunkGenerator {
 export default () => {
   const app = useApp();
   const world = useWorld();
-  // const physics = usePhysics();
+  const physics = usePhysics();
   const {LodChunkTracker} = useLodder();
 
   app.name = 'vegetation';
@@ -358,15 +413,27 @@ export default () => {
       }
     }));
 
-    const meshes = [];
+    const lodMeshes = [];
     for (const name in specs) {
       const spec = specs[name];
-      const subMesh = spec.lods[0];
-      meshes.push(subMesh);
+      lodMeshes.push(spec.lods);
     }
 
+    // physics
+
+    const shapeAddresses = lodMeshes.map(lods => {
+      const lastMesh = lods.findLast(lod => lod !== null);
+      const buffer = physics.cookConvexGeometry(lastMesh);
+      const shapeAddress = physics.createConvexShape(buffer);
+      return shapeAddress;
+    });
+
+    // generator
+
     generator = new VegetationChunkGenerator(this, {
-      meshes,
+      lodMeshes,
+      shapeAddresses,
+      physics
     });
     tracker = new LodChunkTracker(generator, {
       chunkWorldSize,
