@@ -1,8 +1,6 @@
 import * as THREE from 'three';
-import * as BufferGeometryUtils from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import metaversefile from 'metaversefile';
 const {useApp, useProcGen, useLocalPlayer, useFrame, useActivate, useLoaders, useMeshLodder, useMeshes, useCleanup, useWorld, useLodder, useDcWorkerManager, useGeometryAllocators, useMaterials} = metaversefile;
-// import * as metaverseModules from './metaverse-modules.js';
 
 const baseUrl = import.meta.url.replace(/(\/)[^\/\\]*$/, '$1');
 const glbSpecs = [
@@ -28,31 +26,6 @@ const maxAnisotropy = 16;
 
 const geometryAttributeKeys = ['position', 'normal', 'uv'];
 
-const localVector = new THREE.Vector3();
-const localVector2 = new THREE.Vector3();
-const localQuaternion = new THREE.Quaternion();
-const localMatrix = new THREE.Matrix4();
-
-// let rendered = false;
-// window.instances = [];
-
-const zeroVector = new THREE.Vector3(0, 0, 0);
-// const upVector = new THREE.Vector3(0, 1, 0);
-const gravity = new THREE.Vector3(0, -9.8, 0);
-const dropItemSize = 0.2;
-const height = 0.8;
-const radialSegments = 3;
-const heightSegments = 8;
-const openEnded = false;
-const segmentHeight = height / heightSegments;
-const numBlades = 4 * 1024;
-const cutTime = 1;
-const growTime = 60;
-const cutGrowTime = cutTime + growTime;
-const cutHeightOffset = -1.4;
-const floorLimit = dropItemSize / 2;
-const windRotation = ((Date.now() / 1000) % 1) * Math.PI * 2;
-
 //
 
 const {BatchedMesh} = useMeshes();
@@ -60,13 +33,6 @@ class VegetationMesh extends BatchedMesh {
   constructor({
     meshes = [],
   } = {}) {
-    // meshes = meshes.slice(0, 1);
-    /* meshes = [{
-      geometry: silksBaseGeometry,
-    }]; */
-
-    window.meshes = meshes;
-
     const {InstancedGeometryAllocator} = useGeometryAllocators();
 
     // textures
@@ -84,31 +50,9 @@ class VegetationMesh extends BatchedMesh {
     const canvasSize = Math.min(atlas.width, defaultTextureSize);
     const canvasScale = canvasSize / atlas.width;
 
-    // console.log('canvas spec', {canvasSize, canvasScale});
-
-    // console.log('got', {atlasImages, atlasTextures});
-
-    /* for (const key in atlasImages) {
-      const image = atlasImages[key];
-      image.style.cssText = `\
-        width: 1024px;
-        height: 1024px;
-        position: fixed;
-        top: 0;
-        left: 0;
-        z-index: 100;
-      `;
-      document.body.appendChild(image);
-      break;
-    } */
-
-    // console.log('got atlas textures', atlasTextures);
-
     // geometry
 
     const geometries = meshes.map(m => m.geometry);
-    // window.geometries1 = geometries;
-    // let uvOffset = 0;
     for (let i = 0; i < geometries.length; i++) {
       const srcGeometry = geometries[i];
 
@@ -122,7 +66,6 @@ class VegetationMesh extends BatchedMesh {
       geometry.setIndex(srcGeometry.index);
 
       const rect = atlas.rectIndexCache.get(i);
-      // console.log('got rect', rect);
       const {x, y, width: w, height: h} = rect;
       const tx = x * canvasScale;
       const ty = y * canvasScale;
@@ -133,7 +76,6 @@ class VegetationMesh extends BatchedMesh {
     
       geometries[i] = geometry;
     }
-    // window.geometries2 = geometries;
 
     const allocator = new InstancedGeometryAllocator(geometries, [
       {
@@ -151,16 +93,10 @@ class VegetationMesh extends BatchedMesh {
       maxDrawCallsPerGeometry,
     });
     const {geometry, textures: attributeTextures} = allocator;
-    /* if (geometry.index.array.length !== geometry.index.count) {
-      debugger;
-    } */
-    // geometry.setIndex(new THREE.BufferAttribute(Uint32Array.from(geometry.index.array.slice(0, geometry.index.count)), 1));
     for (const k in attributeTextures) {
       const texture = attributeTextures[k];
       texture.anisotropy = maxAnisotropy;
     }
-
-    // console.log('got attribute textures', attributeTextures);
 
     // material
 
@@ -173,16 +109,6 @@ class VegetationMesh extends BatchedMesh {
       onBeforeCompile: (shader) => {
         // console.log('on before compile', shader.fragmentShader);
 
-        /* shader.uniforms.biomeUvDataTexture = {
-          value: biomeUvDataTexture,
-          needsUpdate: true,
-        }; */
-        /* for (const mapName of mapNames) {
-          shader.uniforms[mapName] = {
-            value: atlasTextures[mapName],
-            needsUpdate: true,
-          };
-        } */
         shader.uniforms.pTexture = {
           value: attributeTextures.p,
           needsUpdate: true,
@@ -193,6 +119,7 @@ class VegetationMesh extends BatchedMesh {
         };
         
         // vertex shader
+
         shader.vertexShader = shader.vertexShader.replace(`#include <uv_pars_vertex>`, `\
 #undef USE_INSTANCING
 
@@ -247,23 +174,10 @@ vec4 q = texture2D(qTexture, pUv).xyzw;
     this.frustumCulled = false;
 
     this.meshes = meshes;
-
-    /* this.onBeforeRender = () => {
-      if (!rendered) {
-        console.log('vegetation render');
-        rendered = true;
-      }
-    }; */
-
-    window.plantsMesh = this;
-    window.Vector3 = THREE.Vector3;
-    window.Quaternion = THREE.Quaternion;
-    window.Matrix4 = THREE.Matrix4;
   }
   async addChunk(chunk, {
     signal,
   } = {}) {
-    // console.log('add plant chunk', chunk.toArray().join(','));
     if (chunk.y === 0) {
       let live = true;
       signal.addEventListener('abort', e => {
@@ -278,8 +192,6 @@ vec4 q = texture2D(qTexture, pUv).xyzw;
       };
       const result = await _getVegetationData();
       if (!live) return;
-
-      // console.log('got instances', result.instances.length);
 
       const _renderVegetationGeometry = (drawCall, ps, qs, index) => {
         const pTexture = drawCall.getTexture('p');
@@ -301,19 +213,6 @@ vec4 q = texture2D(qTexture, pUv).xyzw;
         drawCall.updateTexture('q', qOffset, qs.length);
 
         drawCall.incrementInstanceCount();
-        // drawCall.setInstanceCount(8);
-
-        /* const instance = {
-          p: new THREE.Vector3().fromArray(ps, index * 3),
-          q: new THREE.Quaternion().fromArray(qs, index * 4),
-        };
-        window.instances.push(instance);
-        if (instance.q.x === 0 && instance.q.y === 0 && instance.q.z === 0 && instance.q.w === 0) {
-          console.log('zero quaternion', qs);
-          debugger;
-        } */
-
-        // console.log('draw instance', ps[index * 3], ps[index * 3 + 1], ps[index * 3 + 2], qs[index * 4], '-', qs[index * 4 + 1], qs[index * 4 + 2], qs[index * 4 + 3]);
       };
 
       const drawCalls = new Map();
@@ -411,8 +310,6 @@ export default () => {
     }
   });
 
-  // const meshLodder = meshLodManager.createMeshLodder();
-
   let generator = null;
   let tracker = null;
   const specs = {};
@@ -457,18 +354,9 @@ export default () => {
             specs[name] = spec;
           }
           spec.lods[index] = o;
-          
-          // console.log('got lod', spec.lods[index]);
         }
       }
     }));
-
-    /* for (const name in specs) {
-      const spec = specs[name];
-      // console.log('register spec', name, spec);
-      meshLodder.registerLodMesh(name, spec);
-    }
-    meshLodder.compile(); */
 
     const meshes = [];
     for (const name in specs) {
@@ -502,22 +390,9 @@ export default () => {
     generator && generator.update(timestamp, timeDiff);
   });
 
-  /* const chunksObject = meshLodder.getChunks();
-  app.add(chunksObject);
-  chunksObject.updateMatrixWorld(); */
-
-
   // callbacks
 
   app.getPhysicsObjects = () => generator ? generator.getPhysicsObjects() : [];
-
-  /* useFrame(() => {
-    meshLodder.update();
-  });
-  
-  useCleanup(() => {
-    meshLodder.destroy();
-  }); */
 
   return app;
 };
