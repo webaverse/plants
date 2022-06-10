@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import metaversefile from 'metaversefile';
-const {useApp, usePhysics, useLocalPlayer, useFrame, useActivate, useLoaders, useMeshLodder, useMeshes, useCleanup, useWorld, useLodder, useDcWorkerManager, useGeometryAllocators, useMaterials} = metaversefile;
+const {useApp, usePhysics, useLocalPlayer, useFrame, useLoaders, useInstancing, useAtlasing, useCleanup, useWorld, useLodder, useDcWorkerManager, useGeometryAllocators, useMaterials} = metaversefile;
 
 const localVector = new THREE.Vector3();
 const localVector2 = new THREE.Vector3();
@@ -31,22 +31,18 @@ const maxAnisotropy = 16;
 
 //
 
-const {BatchedMesh} = useMeshes();
+const {BatchedMesh, InstancedGeometryAllocator} = useInstancing();
+const {createTextureAtlas} = useAtlasing();
 class VegetationMesh extends BatchedMesh {
   constructor({
     lodMeshes = [],
     shapeAddresses = [],
     physics = null,
   } = {}) {
-    const {InstancedGeometryAllocator} = useGeometryAllocators();
 
-    // textures
-
-    const {createTextureAtlas, generateTextureAtlas, mapWarpedUvs, defaultTextureSize} = useMeshLodder();
+    // instancing
     
     const {
-      atlas,
-      // atlasImages,
       atlasTextures,
       geometries: lod0Geometries,
     } = createTextureAtlas(lodMeshes.map(lods => lods[0]), {
