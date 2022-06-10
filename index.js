@@ -29,8 +29,6 @@ const maxDrawCallsPerGeometry = 32;
 const numLods = 1;
 const maxAnisotropy = 16;
 
-const geometryAttributeKeys = ['position', 'normal', 'uv'];
-
 //
 
 const {BatchedMesh} = useMeshes();
@@ -44,46 +42,17 @@ class VegetationMesh extends BatchedMesh {
 
     // textures
 
-    const {generateTextureAtlas, mapWarpedUvs, defaultTextureSize} = useMeshLodder();
-    const textureSpecs = {
-      map: lodMeshes.map(lods => lods[0].material.map),
-      normalMap: lodMeshes.map(lods => lods[0].material.normalMap),
-    };
+    const {createTextureAtlas, generateTextureAtlas, mapWarpedUvs, defaultTextureSize} = useMeshLodder();
+    
     const {
       atlas,
-      atlasImages,
+      // atlasImages,
       atlasTextures,
-    } = generateTextureAtlas(textureSpecs);
-    const canvasSize = Math.min(atlas.width, defaultTextureSize);
-    const canvasScale = canvasSize / atlas.width;
-
-    // geometry
-
-    const lod0Geometries = lodMeshes.map(lods => lods[0].geometry);
-    // const lodLastGeometries = lodMeshes.map(lods => lods.findLast(lod => lod !== null));
-    for (let i = 0; i < lod0Geometries.length; i++) {
-      const srcGeometry = lod0Geometries[i];
-
-      const geometry = new THREE.BufferGeometry();
-      for (const k of geometryAttributeKeys) {
-        if (['position', 'normal', 'uv'].includes(k)) {
-          const attr = srcGeometry.attributes[k];
-          geometry.setAttribute(k, attr);
-        }
-      }
-      geometry.setIndex(srcGeometry.index);
-
-      const rect = atlas.rectIndexCache.get(i);
-      const {x, y, width: w, height: h} = rect;
-      const tx = x * canvasScale;
-      const ty = y * canvasScale;
-      const tw = w * canvasScale;
-      const th = h * canvasScale;
-
-      mapWarpedUvs(geometry.attributes.uv, 0, geometry.attributes.uv, 0, tx, ty, tw, th, canvasSize);
-    
-      lod0Geometries[i] = geometry;
-    }
+      geometries: lod0Geometries,
+    } = createTextureAtlas(lodMeshes.map(lods => lods[0]), {
+      textures: ['map', 'normalMap'],
+      attributes: ['position', 'normal', 'uv'],
+    });
 
     // allocator
 
