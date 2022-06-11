@@ -173,7 +173,7 @@ vec4 q = texture2D(qTexture, pUv).xyzw;
 
       const _renderVegetationGeometry = (drawCall, ps, qs, index) => {
         // geometry
-        
+
         const pTexture = drawCall.getTexture('p');
         const pOffset = drawCall.getTextureOffset('p');
         const qTexture = drawCall.getTexture('q');
@@ -196,8 +196,8 @@ vec4 q = texture2D(qTexture, pUv).xyzw;
         qTexture.image.data[qOffset + instanceCount * 4 + 2] = qz;
         qTexture.image.data[qOffset + instanceCount * 4 + 3] = qw;
 
-        drawCall.updateTexture('p', pOffset, ps.length);
-        drawCall.updateTexture('q', qOffset, qs.length);
+        drawCall.updateTexture('p', pOffset / 3 + instanceCount, 1);
+        drawCall.updateTexture('q', qOffset / 4 + instanceCount, 1);
 
         drawCall.incrementInstanceCount();
 
