@@ -31,9 +31,9 @@ const maxAnisotropy = 16;
 
 //
 
-const {BatchedMesh, InstancedGeometryAllocator} = useInstancing();
+const {InstancedBatchedMesh, InstancedGeometryAllocator} = useInstancing();
 const {createTextureAtlas} = useAtlasing();
-class VegetationMesh extends BatchedMesh {
+class VegetationMesh extends InstancedBatchedMesh {
   constructor({
     lodMeshes = [],
     shapeAddresses = [],
