@@ -6,6 +6,7 @@ const localVector = new THREE.Vector3();
 const localVector2 = new THREE.Vector3();
 const localQuaternion = new THREE.Quaternion();
 const localMatrix = new THREE.Matrix4();
+const localBox = new THREE.Box3();
 
 const baseUrl = import.meta.url.replace(/(\/)[^\/\\]*$/, '$1');
 const glbSpecs = [
@@ -66,6 +67,7 @@ class VegetationMesh extends InstancedBatchedMesh {
     ], {
       maxInstancesPerDrawCall,
       maxDrawCallsPerGeometry,
+      boundingType: 'box',
     });
     const {geometry, textures: attributeTextures} = allocator;
     for (const k in attributeTextures) {
@@ -214,7 +216,15 @@ vec4 q = texture2D(qTexture, pUv).xyzw;
         
         let drawCall = drawCalls.get(geometryIndex);
         if (!drawCall) {
-          drawCall = this.allocator.allocDrawCall(geometryIndex);
+          localBox.setFromCenterAndSize(
+            localVector.set(
+              (chunk.x + 0.5) * chunkWorldSize,
+              (chunk.y + 0.5) * chunkWorldSize,
+              (chunk.z + 0.5) * chunkWorldSize
+            ),
+            localVector2.set(chunkWorldSize, chunkWorldSize * 256, chunkWorldSize)
+          );
+          drawCall = this.allocator.allocDrawCall(geometryIndex, localBox);
           drawCalls.set(geometryIndex, drawCall);
         }
         _renderVegetationGeometry(drawCall, result.ps, result.qs, i);
