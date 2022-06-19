@@ -323,9 +323,7 @@ class VegetationChunkGenerator {
 
 export default () => {
   const app = useApp();
-  const world = useWorld();
   const physics = usePhysics();
-  const {LodChunkTracker} = useLodder();
   const procGenManager = useProcGenManager();
 
   app.name = 'vegetation';
@@ -417,10 +415,26 @@ export default () => {
       shapeAddresses,
       physics
     });
-    tracker = new LodChunkTracker(generator, {
+    /* tracker = new LodChunkTracker(generator, {
       chunkWorldSize,
       numLods,
+    }); */
+    const numLods = 1;
+    tracker = procGenInstance.getChunkTracker({
+      numLods,
+      // trackY: true,
+      // relod: true,
     });
+    const chunkadd = e => {
+      const {chunk} = e.data;
+      generator.generateChunk(chunk);
+    };
+    tracker.addEventListener('chunkadd', chunkadd);
+    const chunkremove = e => {
+      const {chunk} = e.data;
+      generator.disposeChunk(chunk);
+    };
+    tracker.addEventListener('chunkremove', chunkremove);
 
     const chunksMesh = generator.getChunks();
     app.add(chunksMesh);
