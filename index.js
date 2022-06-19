@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import metaversefile from 'metaversefile';
-const {useApp, usePhysics, useLocalPlayer, useFrame, useLoaders, useInstancing, useAtlasing, useCleanup, useWorld, useLodder, useDcWorkerManager, useGeometryAllocators, useMaterials} = metaversefile;
+const {useApp, usePhysics, useLocalPlayer, useFrame, useLoaders, useInstancing, useAtlasing, useCleanup, useWorld, useLodder, useProcGenManager} = metaversefile;
 
 const localVector = new THREE.Vector3();
 const localVector2 = new THREE.Vector3();
@@ -36,6 +36,7 @@ const {InstancedBatchedMesh, InstancedGeometryAllocator} = useInstancing();
 const {createTextureAtlas} = useAtlasing();
 class VegetationMesh extends InstancedBatchedMesh {
   constructor({
+    procGenInstance,
     lodMeshes = [],
     shapeAddresses = [],
     physics = null,
@@ -150,6 +151,7 @@ vec4 q = texture2D(qTexture, pUv).xyzw;
     super(geometry, material, allocator);
     this.frustumCulled = false;
     
+    this.procGenInstance = procGenInstance;
     this.meshes = lodMeshes;
     this.shapeAddresses = shapeAddresses;
     this.physics = physics;
@@ -165,9 +167,8 @@ vec4 q = texture2D(qTexture, pUv).xyzw;
       });
     
       const _getVegetationData = async () => {
-        const dcWorkerManager = useDcWorkerManager();
         const lod = 1;
-        const result = await dcWorkerManager.createVegetationSplat(chunk.x * chunkWorldSize, chunk.z * chunkWorldSize, lod);
+        const result = await this.procGenInstance.dcWorkerManager.createVegetationSplat(chunk.x * chunkWorldSize, chunk.z * chunkWorldSize, lod);
         return result;
       };
       const result = await _getVegetationData();
@@ -271,6 +272,7 @@ vec4 q = texture2D(qTexture, pUv).xyzw;
 
 class VegetationChunkGenerator {
   constructor(parent, {
+    procGenInstance = null,
     lodMeshes = [],
     shapeAddresses = [],
     physics = null,
@@ -280,6 +282,7 @@ class VegetationChunkGenerator {
 
     // mesh
     this.mesh = new VegetationMesh({
+      procGenInstance,
       lodMeshes,
       shapeAddresses,
       physics,
@@ -323,6 +326,7 @@ export default () => {
   const world = useWorld();
   const physics = usePhysics();
   const {LodChunkTracker} = useLodder();
+  const procGenManager = useProcGenManager();
 
   app.name = 'vegetation';
 
@@ -405,7 +409,10 @@ export default () => {
 
     // generator
 
+    const procGenInstance = procGenManager.getInstance(null);
+
     generator = new VegetationChunkGenerator(this, {
+      procGenInstance,
       lodMeshes,
       shapeAddresses,
       physics
