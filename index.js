@@ -328,6 +328,15 @@ export default () => {
 
   app.name = 'vegetation';
 
+  const seed = app.getComponent('seed') ?? null;
+  let range = app.getComponent('range') ?? null;
+  if (range) {
+    range = new THREE.Box3(
+      new THREE.Vector3(range[0][0], range[0][1], range[0][2]),
+      new THREE.Vector3(range[1][0], range[1][1], range[1][2])
+    );
+  }
+
   const frameFns = [];
   useFrame(({timestamp, timeDiff}) => {
     for (const frameFn of frameFns) {
@@ -407,7 +416,7 @@ export default () => {
 
     // generator
 
-    const procGenInstance = procGenManager.getInstance(null);
+    const procGenInstance = procGenManager.getInstance(seed, range);
 
     generator = new VegetationChunkGenerator(this, {
       procGenInstance,
@@ -446,7 +455,7 @@ export default () => {
   })();
 
   useFrame(({timestamp, timeDiff}) => {
-    if (tracker) {
+    if (tracker && !range) {
       const localPlayer = useLocalPlayer();
       tracker.update(localPlayer.position);
     }
