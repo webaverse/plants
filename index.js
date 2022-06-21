@@ -290,19 +290,22 @@ class VegetationChunkGenerator {
   getPhysicsObjects() {
     return this.mesh.getPhysicsObjects();
   }
-  generateChunk(chunk) {
+  async generateChunk(chunk) {
     const abortController = new AbortController();
     const {signal} = abortController;
     
-    (async () => {
-      this.mesh.addChunk(chunk, {
-        signal,
-      });
-    })();    
-
     chunk.binding = {
       abortController,
     };
+
+    try {
+      await this.mesh.addChunk(chunk, {
+        signal,
+      });
+    } catch (err) {
+      console.warn('generate chunk error', err);
+      throw err;
+    }
   }
   disposeChunk(chunk) {
     const {abortController} = chunk.binding;
@@ -314,7 +317,7 @@ class VegetationChunkGenerator {
   }
 }
 
-export default () => {
+export default e => {
   const app = useApp();
   const physics = usePhysics();
   const procGenManager = useProcGenManager();
@@ -323,6 +326,7 @@ export default () => {
 
   const seed = app.getComponent('seed') ?? null;
   let range = app.getComponent('range') ?? null;
+  const wait = app.getComponent('wait') ?? false;
   if (range) {
     range = new THREE.Box3(
       new THREE.Vector3(range[0][0], range[0][1], range[0][2]),
@@ -347,7 +351,7 @@ export default () => {
   let generator = null;
   let tracker = null;
   const specs = {};
-  (async () => {
+  e.waitUntil((async () => {
     await Promise.all(glbSpecs.map(async glbSpec => {
       const {type, url} = glbSpec;
       const u = url;
@@ -424,8 +428,8 @@ export default () => {
       // relod: true,
     });
     const chunkadd = e => {
-      const {chunk} = e.data;
-      generator.generateChunk(chunk);
+      const {chunk, waitUntil} = e.data;
+      waitUntil(generator.generateChunk(chunk));
     };
     tracker.addEventListener('chunkadd', chunkadd);
     const chunkremove = e => {
@@ -441,7 +445,17 @@ export default () => {
     cleanupFns.push(() => {
       tracker.destroy();
     });
-  })();
+
+    if (wait) {
+      await new Promise((accept, reject) => {
+        tracker.addEventListener('update', () => {
+          accept();
+        }, {
+          once: true,
+        });
+      });
+    }
+  })());
 
   useFrame(({timestamp, timeDiff}) => {
     if (tracker && !range) {
