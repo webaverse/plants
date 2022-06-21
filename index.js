@@ -27,7 +27,6 @@ const glbSpecs = [
 const chunkWorldSize = 16;
 const maxInstancesPerDrawCall = 128;
 const maxDrawCallsPerGeometry = 32;
-const numLods = 1;
 const maxAnisotropy = 16;
 
 //
@@ -265,9 +264,6 @@ vec4 q = texture2D(qTexture, pUv).xyzw;
   getPhysicsObjects() {
     return this.physicsObjects;
   }
-  update() {
-    // nothing
-  }
 }
 
 class VegetationChunkGenerator {
@@ -312,9 +308,6 @@ class VegetationChunkGenerator {
     const {abortController} = chunk.binding;
     abortController.abort();
     chunk.binding = null;
-  }
-  update(timestamp, timeDiff) {
-    this.mesh.update(timestamp, timeDiff);
   }
   destroy() {
     // nothing; the owning lod tracker disposes of our contents
@@ -424,10 +417,6 @@ export default () => {
       shapeAddresses,
       physics
     });
-    /* tracker = new LodChunkTracker(generator, {
-      chunkWorldSize,
-      numLods,
-    }); */
     const numLods = 1;
     tracker = procGenInstance.getChunkTracker({
       numLods,
@@ -459,7 +448,6 @@ export default () => {
       const localPlayer = useLocalPlayer();
       tracker.update(localPlayer.position);
     }
-    generator && generator.update(timestamp, timeDiff);
   });
 
   // callbacks
