@@ -10,6 +10,8 @@ const localMatrix = new THREE.Matrix4();
 const localBox = new THREE.Box3();
 
 const baseUrl = import.meta.url.replace(/(\/)[^\/\\]*$/, '$1');
+
+//#region ASSETS TO BE IMPORTED
 const glbSpecs = [
   // {
   //   type: 'object',
@@ -25,16 +27,22 @@ const glbSpecs = [
     url: `${baseUrl}trees.glb`,
   },
 ];
+//#endregion
 
-const chunkWorldSize = 16;
+//#region CHUNK SETUP
+const chunkWorldSize = 128;
 const maxInstancesPerDrawCall = 128;
 const maxDrawCallsPerGeometry = 32;
 const maxAnisotropy = 16;
+//#endregion
 
 //
 
+// TAKE ONLY 2 FNS FROM USE INSTANCING
 const {InstancedBatchedMesh, InstancedGeometryAllocator} = useInstancing();
 const {createTextureAtlas} = useAtlasing();
+
+
 class VegetationMesh extends InstancedBatchedMesh {
   constructor({
     procGenInstance,
@@ -165,11 +173,12 @@ vec4 q = texture2D(qTexture, pUv).xyzw;
     return result;
   };
 
-  drawVegetation(chunk, renderData, signal, task, tracker){
+  drawVegetation(chunks, renderDatas, signal, task, tracker){
     // CREATES AND POSITION VEGETATION GEOMETRY
+    console.log("draws vegetation");
+    
     const _renderVegetationGeometry = (drawCall, ps, qs, index) => {
       // geometry
-
       const pTexture = drawCall.getTexture('p');
       const pOffset = drawCall.getTextureOffset('p');
       const qTexture = drawCall.getTexture('q');
@@ -198,39 +207,54 @@ vec4 q = texture2D(qTexture, pUv).xyzw;
       drawCall.incrementInstanceCount();
 
       // physics
-      //const shapeAddress = this.#getShapeAddress(drawCall.geometryIndex);
-      //const physicsObject = this.#addPhysicsShape(shapeAddress, px, py, pz, qx, qy, qz, qw);
-      //this.physicsObjects.push(physicsObject);
+      const shapeAddress = this.#getShapeAddress(drawCall.geometryIndex);
+      const physicsObject = this.#addPhysicsShape(shapeAddress, px, py, pz, qx, qy, qz, qw);
+      this.physicsObjects.push(physicsObject);
     };
 
     
     const drawCalls = new Map();
-    for (let i = 0; i < renderData.instances.length; i++) {
-      const geometryNoise = renderData.instances[i];
-      const geometryIndex = Math.floor(geometryNoise * this.meshes.length);
-      let drawCall = drawCalls.get(geometryIndex);
-      
-      if (!drawCall) {
-        localBox.setFromCenterAndSize(
-          localVector.set(
-            (chunk.x + 0.5) * chunkWorldSize,
-            (chunk.y + 0.5) * chunkWorldSize,
-            (chunk.z + 0.5) * chunkWorldSize
-          ),
-          localVector2.set(chunkWorldSize, chunkWorldSize * 256, chunkWorldSize)
-        );
-        drawCall = this.allocator.allocDrawCall(geometryIndex, localBox);
-        drawCalls.set(geometryIndex, drawCall);
-      }
-      _renderVegetationGeometry(drawCall, renderData.ps, renderData.qs, i);
 
-      const ondestroy = e =>{
-        this.allocator.freeDrawCall(drawCall);
+    // call for every chunk instead of per chunk
+    for (let j =0; j < chunks.length;j++){
+
+      const renderData = renderDatas[j];
+      const chunk = chunks[j];
+    
+      for (let i = 0; i < renderData.instances.length; i++) {
+        const geometryNoise = renderData.instances[i];
+        console.log(geometryNoise);
+        console.log(this.meshes.length);
+        const geometryIndex = Math.floor(geometryNoise * this.meshes.length);
+        console.log(geometryIndex);
+        let drawCall = drawCalls.get(geometryIndex);
+        
+        // make a drawcall for the geometry index
+        if (!drawCall) {
+          localBox.setFromCenterAndSize(
+            localVector.set(
+              (chunk.x + 0.5) * chunkWorldSize,
+              (chunk.y + 0.5) * chunkWorldSize,
+              (chunk.z + 0.5) * chunkWorldSize
+            ),
+            localVector2.set(chunkWorldSize, chunkWorldSize * 256, chunkWorldSize)
+          );
+          drawCall = this.allocator.allocDrawCall(geometryIndex, localBox);
+          drawCalls.set(geometryIndex, drawCall);
+        }
+
+        _renderVegetationGeometry(drawCall, renderData.ps, renderData.qs, i);
+
+        // 
+        const ondestroy = e =>{
+          this.allocator.freeDrawCall(drawCall);
+        }
+        tracker.listenForChunkDestroy(chunk, ondestroy);
       }
-      tracker.listenForChunkDestroy(chunk, ondestroy);
+      
 
     }
-
+    // full array call
     signal.addEventListener('abort', e => {
       for (const drawCall of drawCalls.values()) {
         console.log("draws");
@@ -404,8 +428,16 @@ class VegetationChunkGenerator {
     chunk.binding = null;
   }
 
-  async relodChunksTask(task, tracker) {
+  // async blockRelodChunkTask(tasks, tracker){
+  //   const scope = this;
+  //   console.log(tasks);
+  //   tasks.forEach(task => {
+  //     this.relodChunksTask(task, tracker);
+  //   });
+  //   console.log("finished");
+  // }
 
+  async relodChunksTask(task, tracker) {
 
     try {
 
@@ -420,12 +452,13 @@ class VegetationChunkGenerator {
       for (const oldNode of oldNodes) {
         tracker.emitChunkDestroy(oldNode);
       }
-
-      for (let i = 0; i < newNodes.length; i++) {
-        const newNode = newNodes[i];
-        const renderData = renderDatas[i];
-        this.mesh.drawVegetation(newNode, renderData, signal, task, tracker);
-      }
+      //console.log(newNodes.length);
+      this.mesh.drawVegetation(newNodes, renderDatas,signal, task, tracker)
+      // for (let i = 0; i < newNodes.length; i++) {
+      //   const newNode = newNodes[i];
+      //   const renderData = renderDatas[i];
+      //   this.mesh.drawVegetation(newNode, renderData, signal, task, tracker);
+      // }
       task.commit();
     } catch (err) {
       if (err?.isAbortError) {
@@ -455,6 +488,8 @@ export default e => {
   const seed = app.getComponent('seed') ?? null;
   let range = app.getComponent('range') ?? null;
   const wait = app.getComponent('wait') ?? false;
+
+  console.log(range);
   if (range) {
     range = new THREE.Box3(
       new THREE.Vector3(range[0][0], range[0][1], range[0][2]),
@@ -549,19 +584,22 @@ export default e => {
       physics
     });
     //console.log(generator);
-    const numLods = 1;
+    const numLods = 3;
     tracker = procGenInstance.getChunkTracker({
-      numLods
+      numLods,
       // trackY: true,
-      // relod: true,
+      //relod: true,
     });
 
-    const chunkrelod = e => {
-      //generator.relodChunksTask(e.data.task, tracker);
-      //console.log(e.data);
-      generator.relodChunksTask(e.data.task, tracker);
-    };
-    tracker.addEventListener('chunkrelod', chunkrelod);
+    // const chunkrelod = e => {
+    //   generator.relodChunksTask(e.data.task, tracker);
+    // };
+    // tracker.addEventListener('chunkrelod', chunkrelod);
+
+    const blockchunkrelod = e =>{
+      generator.relodChunksTask(e.data.task,tracker);
+    }
+    tracker.addEventListener('blockchunkrelod', blockchunkrelod);
 
 
 
