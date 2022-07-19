@@ -249,7 +249,6 @@ vec4 q = texture2D(qTexture, pUv).xyzw;
 
       signal.addEventListener('abort', e => {
         for (const drawCall of this.drawCalls.values()) {
-          console.log("draws");
           this.allocator.freeDrawCall(drawCall);
         }
       });
@@ -309,7 +308,6 @@ class VegetationChunkGenerator {
     return this.mesh.getPhysicsObjects();
   }
   async generateChunk(chunk) {
-    console.log("generates a chunk");
     const abortController = new AbortController();
     const {signal} = abortController;
     
@@ -349,39 +347,39 @@ class VegetationChunkGenerator {
   //   // this.mesh.drawVegetation(chunk, renderData, tracker);
   // }
 
-  async relodChunksTask(task, tracker) {
-    console.log(task);
-    try {
+  // async relodChunksTask(task, tracker) {
+  //   console.log(task);
+  //   try {
 
-      let {newNodes, oldNodes, signal} = task;
+  //     let {newNodes, oldNodes, signal} = task;
 
-      const renderDatas = await Promise.all(newNodes.map(newNode => this.mesh.getVegetationData(
-        newNode
-      )));
-      //console.log(renderDatas);
-      //console.log(renderDatas.instances);
-      signal.throwIfAborted();
-      for (const oldNode of oldNodes) {
-        tracker.emitChunkDestroy(oldNode);
-      }
-      //console.log(newNodes.length);
-      this.mesh.drawVegetation(newNodes, renderDatas,signal, tracker)
-      // for (let i = 0; i < newNodes.length; i++) {
-      //   const newNode = newNodes[i];
-      //   const renderData = renderDatas[i];
-      //   this.mesh.drawVegetation(newNode, renderData, signal, task, tracker);
-      // }
-      task.commit();
-    } catch (err) {
-      if (err?.isAbortError) {
-        // console.log('chunk render abort', new Error().stack);
-        // nothing
-      } else {
-        throw err;
-        // console.warn(err);
-      }
-    }
-  }
+  //     const renderDatas = await Promise.all(newNodes.map(newNode => this.mesh.getVegetationData(
+  //       newNode
+  //     )));
+  //     //console.log(renderDatas);
+  //     //console.log(renderDatas.instances);
+  //     signal.throwIfAborted();
+  //     for (const oldNode of oldNodes) {
+  //       tracker.emitChunkDestroy(oldNode);
+  //     }
+  //     //console.log(newNodes.length);
+  //     this.mesh.drawVegetation(newNodes, renderDatas,signal, tracker)
+  //     // for (let i = 0; i < newNodes.length; i++) {
+  //     //   const newNode = newNodes[i];
+  //     //   const renderData = renderDatas[i];
+  //     //   this.mesh.drawVegetation(newNode, renderData, signal, task, tracker);
+  //     // }
+  //     task.commit();
+  //   } catch (err) {
+  //     if (err?.isAbortError) {
+  //       // console.log('chunk render abort', new Error().stack);
+  //       // nothing
+  //     } else {
+  //       throw err;
+  //       // console.warn(err);
+  //     }
+  //   }
+  // }
 
 
 
@@ -401,7 +399,6 @@ export default e => {
   let range = app.getComponent('range') ?? null;
   const wait = app.getComponent('wait') ?? false;
 
-  console.log(range);
   if (range) {
     range = new THREE.Box3(
       new THREE.Vector3(range[0][0], range[0][1], range[0][2]),
