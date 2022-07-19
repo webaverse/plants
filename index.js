@@ -167,6 +167,76 @@ vec4 q = texture2D(qTexture, pUv).xyzw;
     this.physicsObjects = [];
   }
 
+  drawChunk(chunk, renderData, tracker){
+    const {
+      vegetationData,
+      heightfield,
+    } = renderData;
+
+    const _renderVegetationGeometry = (drawCall, ps, qs) => {
+      // geometry
+
+      const pTexture = drawCall.getTexture('p');
+      const pOffset = drawCall.getTextureOffset('p');
+      const qTexture = drawCall.getTexture('q');
+      const qOffset = drawCall.getTextureOffset('q');
+
+      pTexture.image.data.set(ps, pOffset);
+      qTexture.image.data.set(qs, qOffset);
+
+      drawCall.updateTexture('p', pOffset, ps.length);
+      drawCall.updateTexture('q', qOffset, qs.length);
+
+      drawCall.setInstanceCount(ps.length / 3);
+
+      // const instanceCount = drawCall.getInstanceCount();
+      // const px = ps[index * 3];
+      // const py = ps[index * 3 + 1];
+      // const pz = ps[index * 3 + 2];
+      // pTexture.image.data[pOffset + instanceCount * 3] = px;
+      // pTexture.image.data[pOffset + instanceCount * 3 + 1] = py;
+      // pTexture.image.data[pOffset + instanceCount * 3 + 2] = pz;
+
+      // const qx = qs[index * 4];
+      // const qy = qs[index * 4 + 1];
+      // const qz = qs[index * 4 + 2];
+      // const qw = qs[index * 4 + 3];
+      // qTexture.image.data[qOffset + instanceCount * 4] = qx;
+      // qTexture.image.data[qOffset + instanceCount * 4 + 1] = qy;
+      // qTexture.image.data[qOffset + instanceCount * 4 + 2] = qz;
+      // qTexture.image.data[qOffset + instanceCount * 4 + 3] = qw;
+
+      // drawCall.updateTexture('p', pOffset / 3 + instanceCount, 1);
+      // drawCall.updateTexture('q', qOffset / 4 + instanceCount, 1);
+
+      // drawCall.incrementInstanceCount();
+
+      // // physics
+      const shapeAddress = this.#getShapeAddress(drawCall.geometryIndex);
+      const physicsObject = this.#addPhysicsShape(shapeAddress, px, py, pz, qx, qy, qz, qw);
+      this.physicsObjects.push(physicsObject);
+    };
+
+
+
+    localBox.setFromCenterAndSize(
+      localVector.set(
+        (chunk.x + 0.5) * chunkWorldSize,
+        (chunk.y + 0.5) * chunkWorldSize,
+        (chunk.z + 0.5) * chunkWorldSize
+      ),
+      localVector2.set(chunkWorldSize, chunkWorldSize * 256, chunkWorldSize)
+    );
+
+
+
+    const drawCall = this.allocator.allocDrawCall(0, localBox);
+    _renderVegetationGeometry(drawCall, vegetationData.ps, vegetationData.qs);
+
+
+    //on chunk remove
+  }
+  
 
 
   async addChunk(chunk, {
@@ -450,29 +520,71 @@ export default e => {
       //relod: true,
     });
 
-    // const chunkrelod = e => {
-    //   generator.relodChunksTask(e.data.task, tracker);
-    // };
-    // tracker.addEventListener('chunkrelod', chunkrelod);
+    const chunkdatarequest = (e) => {
+      const {chunk, waitUntil, signal} = e.data;
+      const {lod} = chunk;
+
+      const loadPromise = (async () => {
+        const _getVegetationData = async () => {
+          const result = await procGenInstance.dcWorkerManager.createVegetationSplat(
+            chunk.min.x * chunkWorldSize,
+            chunk.min.z * chunkWorldSize,
+            lod
+          );
+          return result;
+        };
+        const _loadHeightfield = async () => {
+          const heightfield = await procGenInstance.dcWorkerManager.getChunkHeightfield(
+            chunk.min.x * chunkWorldSize,
+            chunk.min.z * chunkWorldSize,
+            lod
+          );
+          return heightfield;
+        };
+        const [
+          vegetationData,
+          heightfield,
+        ] = await Promise.all([
+          _getVegetationData(),
+          _loadHeightfield(),
+        ]);
+  
+        /* const renderData = await generator.waterMesh.getChunkRenderData(
+          chunk,
+          signal
+        ); */
+        signal.throwIfAborted();
+  
+        return {
+          vegetationData,
+          heightfield,
+        };
+      })();
+      waitUntil(loadPromise);
+    };
 
     const chunkAdd = e =>{
-      generator.generateChunk(e.data.chunk);
+      const {renderData,chunk} = e.data;
+      //generator.generateChunk(e.data.chunk);
+      generator.mesh.drawChunk(chunk, renderData, tracker);
     }
+
     tracker.addEventListener('chunkadd', chunkAdd);
-    
-    // const chunkremove = e => {
-    //   const {chunk} = e.data;
-    //   console.log("dispose");
-    //   generator.disposeChunk(chunk);
-    // };
-    // tracker.addEventListener('chunkremove', chunkremove);
+    tracker.addEventListener('chunkdatarequest', chunkdatarequest);
 
 
     const chunksMesh = generator.getChunks();
     app.add(chunksMesh);
-
-    //scene.add(app);
     chunksMesh.updateMatrixWorld();
+
+
+    const coordupdate = e => {
+      const {coord} = e.data;
+      chunksMesh.updateCoord(coord);
+    };
+    tracker.addEventListener('coordupdate', coordupdate);
+
+
 
     cleanupFns.push(() => {
       tracker.destroy();
@@ -495,6 +607,10 @@ export default e => {
       tracker.update(localPlayer.position);
     }
   });
+
+  useCleanup(()=>{
+    tracker.destroy();
+  })
   
   // callbacks
 
