@@ -30,7 +30,7 @@ const glbSpecs = [
 //#endregion
 
 //#region CHUNK SETUP
-const chunkWorldSize = 128;
+const chunkWorldSize = 16;
 const maxInstancesPerDrawCall = 128;
 const maxDrawCallsPerGeometry = 32;
 const maxAnisotropy = 16;
