@@ -36,8 +36,6 @@ const maxDrawCallsPerGeometry = 32;
 const maxAnisotropy = 16;
 //#endregion
 
-//
-
 // TAKE ONLY 2 FNS FROM USE INSTANCING
 const {InstancedBatchedMesh, InstancedGeometryAllocator} = useInstancing();
 const {createTextureAtlas} = useAtlasing();
