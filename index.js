@@ -330,56 +330,6 @@ class VegetationChunkGenerator {
     chunk.binding = null;
   }
 
-  // async blockRelodChunkTask(tasks, tracker){
-  //   const scope = this;
-  //   console.log(tasks);
-  //   tasks.forEach(task => {
-  //     this.relodChunksTask(task, tracker);
-  //   });
-  //   console.log("finished");
-  // }
-
-  // async loadChunk(chunk, renderData, tracker){
-  //   this.generateChunk(chunk);
-  //   //console.log(chunk)
-  //   // console.log(renderData)
-  //   // console.log(tracker)
-  //   // this.mesh.drawVegetation(chunk, renderData, tracker);
-  // }
-
-  // async relodChunksTask(task, tracker) {
-  //   console.log(task);
-  //   try {
-
-  //     let {newNodes, oldNodes, signal} = task;
-
-  //     const renderDatas = await Promise.all(newNodes.map(newNode => this.mesh.getVegetationData(
-  //       newNode
-  //     )));
-  //     //console.log(renderDatas);
-  //     //console.log(renderDatas.instances);
-  //     signal.throwIfAborted();
-  //     for (const oldNode of oldNodes) {
-  //       tracker.emitChunkDestroy(oldNode);
-  //     }
-  //     //console.log(newNodes.length);
-  //     this.mesh.drawVegetation(newNodes, renderDatas,signal, tracker)
-  //     // for (let i = 0; i < newNodes.length; i++) {
-  //     //   const newNode = newNodes[i];
-  //     //   const renderData = renderDatas[i];
-  //     //   this.mesh.drawVegetation(newNode, renderData, signal, task, tracker);
-  //     // }
-  //     task.commit();
-  //   } catch (err) {
-  //     if (err?.isAbortError) {
-  //       // console.log('chunk render abort', new Error().stack);
-  //       // nothing
-  //     } else {
-  //       throw err;
-  //       // console.warn(err);
-  //     }
-  //   }
-  // }
 
 
 
