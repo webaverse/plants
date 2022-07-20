@@ -172,7 +172,6 @@ vec4 q = texture2D(qTexture, pUv).xyzw;
       vegetationData,
       heightfield,
     } = renderData;
-    console.log(vegetationData);
     const _renderVegetationGeometry = (drawCall, ps, qs, index) => {
       // geometry
 
@@ -189,9 +188,8 @@ vec4 q = texture2D(qTexture, pUv).xyzw;
 
       drawCall.setInstanceCount(ps.length / 3);
 
-      console.log(drawCall.getInstanceCount());
-
       const instanceCount = drawCall.getInstanceCount();
+
       const px = ps[index * 3];
       const py = ps[index * 3 + 1];
       const pz = ps[index * 3 + 2];
@@ -214,42 +212,45 @@ vec4 q = texture2D(qTexture, pUv).xyzw;
       drawCall.incrementInstanceCount();
 
       // // physics
-      console.log(drawCall.geometryIndex);
+
+
       const shapeAddress = this.#getShapeAddress(drawCall.geometryIndex);
       const physicsObject = this.#addPhysicsShape(shapeAddress, px, py, pz, qx, qy, qz, qw);
+      //const physicsObject = this.#addPhysicsShape(shapeAddress, ps[0], ps[1], ps[2], qs[0], qs[1], qs[2], qs[3]);
       this.physicsObjects.push(physicsObject);
     };
 
     //const drawCalls = new Map();
-    for (let i = 0; i < vegetationData.instances.length; i++) {
-      const geometryNoise = vegetationData.instances[i];
-      const geometryIndex = Math.floor(geometryNoise * this.meshes.length);
+    
+    // for (let i = 0; i < vegetationData.instances.length; i++) {
+    //   const geometryNoise = vegetationData.instances[i];
+    //   const geometryIndex = Math.floor(geometryNoise * this.meshes.length);
       
-      let drawCall = this.drawCalls.get(geometryIndex);
-      if (!drawCall) {
-        localBox.setFromCenterAndSize(
-          localVector.set(
-            (chunk.x + 0.5) * chunkWorldSize,
-            (chunk.y + 0.5) * chunkWorldSize,
-            (chunk.z + 0.5) * chunkWorldSize
-          ),
-          localVector2.set(chunkWorldSize, chunkWorldSize * 256, chunkWorldSize)
-        );
-        drawCall = this.allocator.allocDrawCall(geometryIndex, localBox);
-        this.drawCalls.set(geometryIndex, drawCall);
-      }
-      _renderVegetationGeometry(drawCall, vegetationData.ps, vegetationData.qs, i);
+    //   let drawCall = this.drawCalls.get(geometryIndex);
+    //   if (!drawCall) {
+    //     localBox.setFromCenterAndSize(
+    //       localVector.set(
+    //         (chunk.x + 0.5) * chunkWorldSize,
+    //         (chunk.y + 0.5) * chunkWorldSize,
+    //         (chunk.z + 0.5) * chunkWorldSize
+    //       ),
+    //       localVector2.set(chunkWorldSize, chunkWorldSize * 256, chunkWorldSize)
+    //     );
+    //     drawCall = this.allocator.allocDrawCall(geometryIndex, localBox);
+    //     this.drawCalls.set(geometryIndex, drawCall);
+    //   }
+    //   _renderVegetationGeometry(drawCall, vegetationData.ps, vegetationData.qs, i);
 
-      const onchunkremove = e => {
-        const {chunk: removeChunk} = e.data;
-        if (chunk.equalsNodeLod(removeChunk)) {
-          this.allocator.freeDrawCall(drawCall);
+    //   const onchunkremove = e => {
+    //     const {chunk: removeChunk} = e.data;
+    //     if (chunk.equalsNodeLod(removeChunk)) {
+    //       this.allocator.freeDrawCall(drawCall);
         
-          tracker.removeEventListener('chunkremove', onchunkremove);
-        }
-      };
-      tracker.addEventListener('chunkremove', onchunkremove);
-    }
+    //       tracker.removeEventListener('chunkremove', onchunkremove);
+    //     }
+    //   };
+    //   tracker.addEventListener('chunkremove', onchunkremove);
+    // }
 
     // const drawCalls = new Map();
     // for (let i = 0; i < vegetationData.instances.length; i++){
@@ -269,19 +270,35 @@ vec4 q = texture2D(qTexture, pUv).xyzw;
 
 
 
-    // localBox.setFromCenterAndSize(
-    //   localVector.set(
-    //     (chunk.x + 0.5) * chunkWorldSize,
-    //     (chunk.y + 0.5) * chunkWorldSize,
-    //     (chunk.z + 0.5) * chunkWorldSize
-    //   ),
-    //   localVector2.set(chunkWorldSize, chunkWorldSize * 256, chunkWorldSize)
-    // );
 
-    // const drawCall = this.allocator.allocDrawCall(0, localBox);
-    // _renderVegetationGeometry(drawCall, vegetationData.ps, vegetationData.qs);
+    //const geometryNoise = 
+    
+    const instanceIndex = Math.floor(Math.random() * vegetationData.instances.length);
+    const geometryNoise = vegetationData.instances[instanceIndex];
+    const geometryIndex = Math.floor(geometryNoise * this.meshes.length);
+    //const geometryIndex = Math.floor(Math.random() * this.meshes.length);
 
+    localBox.setFromCenterAndSize(
+      localVector.set(
+        (chunk.x + 0.5) * chunkWorldSize,
+        (chunk.y + 0.5) * chunkWorldSize,
+        (chunk.z + 0.5) * chunkWorldSize
+      ),
+      localVector2.set(chunkWorldSize, chunkWorldSize * 256, chunkWorldSize)
+    );
 
+    const drawCall = this.allocator.allocDrawCall(geometryIndex, localBox);
+    _renderVegetationGeometry(drawCall, vegetationData.ps, vegetationData.qs, instanceIndex);
+
+    const onchunkremove = e => {
+      const {chunk: removeChunk} = e.data;
+      if (chunk.equalsNodeLod(removeChunk)) {
+        this.allocator.freeDrawCall(drawCall);
+      
+        tracker.removeEventListener('chunkremove', onchunkremove);
+      }
+    };
+    tracker.addEventListener('chunkremove', onchunkremove);
     //on chunk remove
   }
   
