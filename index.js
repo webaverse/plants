@@ -17,11 +17,11 @@ const glbSpecs = [
   //   type: 'object',
   //   url: `${baseUrl}plants.glb`,
   // },
-  /* 
+  
   {
     type: 'object',
     url: `${baseUrl}rocks.glb`,
-  }, */
+  }, 
   {
     type: 'plant',
     url: `${baseUrl}trees.glb`,
@@ -170,11 +170,9 @@ vec4 q = texture2D(qTexture, pUv).xyzw;
   drawChunk(chunk, renderData, tracker){
     const {
       vegetationData,
-      heightfield,
     } = renderData;
     const _renderVegetationGeometry = (drawCall, ps, qs, index) => {
       // geometry
-
       const pTexture = drawCall.getTexture('p');
       const pOffset = drawCall.getTextureOffset('p');
       const qTexture = drawCall.getTexture('q');
@@ -186,120 +184,66 @@ vec4 q = texture2D(qTexture, pUv).xyzw;
       drawCall.updateTexture('p', pOffset, ps.length);
       drawCall.updateTexture('q', qOffset, qs.length);
 
-      drawCall.setInstanceCount(ps.length / 3);
-
-      const instanceCount = drawCall.getInstanceCount();
-
       const px = ps[index * 3];
       const py = ps[index * 3 + 1];
       const pz = ps[index * 3 + 2];
-      pTexture.image.data[pOffset + instanceCount * 3] = px;
-      pTexture.image.data[pOffset + instanceCount * 3 + 1] = py;
-      pTexture.image.data[pOffset + instanceCount * 3 + 2] = pz;
+      pTexture.image.data[pOffset] = px;
+      pTexture.image.data[pOffset + 1] = py;
+      pTexture.image.data[pOffset + 2] = pz;
 
       const qx = qs[index * 4];
       const qy = qs[index * 4 + 1];
       const qz = qs[index * 4 + 2];
       const qw = qs[index * 4 + 3];
-      qTexture.image.data[qOffset + instanceCount * 4] = qx;
-      qTexture.image.data[qOffset + instanceCount * 4 + 1] = qy;
-      qTexture.image.data[qOffset + instanceCount * 4 + 2] = qz;
-      qTexture.image.data[qOffset + instanceCount * 4 + 3] = qw;
+      qTexture.image.data[qOffset] = qx;
+      qTexture.image.data[qOffset + 1] = qy;
+      qTexture.image.data[qOffset + 2] = qz;
+      qTexture.image.data[qOffset + 3] = qw;
 
-      drawCall.updateTexture('p', pOffset / 3 + instanceCount, 1);
-      drawCall.updateTexture('q', qOffset / 4 + instanceCount, 1);
+      drawCall.updateTexture('p', pOffset / 3, 1);
+      drawCall.updateTexture('q', qOffset / 4, 1);
 
       drawCall.incrementInstanceCount();
 
       // // physics
-
-
       const shapeAddress = this.#getShapeAddress(drawCall.geometryIndex);
       const physicsObject = this.#addPhysicsShape(shapeAddress, px, py, pz, qx, qy, qz, qw);
-      //const physicsObject = this.#addPhysicsShape(shapeAddress, ps[0], ps[1], ps[2], qs[0], qs[1], qs[2], qs[3]);
       this.physicsObjects.push(physicsObject);
     };
 
-    //const drawCalls = new Map();
-    
-    // for (let i = 0; i < vegetationData.instances.length; i++) {
-    //   const geometryNoise = vegetationData.instances[i];
-    //   const geometryIndex = Math.floor(geometryNoise * this.meshes.length);
+
+    // create drawcalls per chunk
+    const drawCalls = new Map();
+    for (let i = 0; i < vegetationData.instances.length; i++) {
+      const geometryNoise = vegetationData.instances[i];
+      const geometryIndex = Math.floor(geometryNoise * this.meshes.length);
       
-    //   let drawCall = this.drawCalls.get(geometryIndex);
-    //   if (!drawCall) {
-    //     localBox.setFromCenterAndSize(
-    //       localVector.set(
-    //         (chunk.x + 0.5) * chunkWorldSize,
-    //         (chunk.y + 0.5) * chunkWorldSize,
-    //         (chunk.z + 0.5) * chunkWorldSize
-    //       ),
-    //       localVector2.set(chunkWorldSize, chunkWorldSize * 256, chunkWorldSize)
-    //     );
-    //     drawCall = this.allocator.allocDrawCall(geometryIndex, localBox);
-    //     this.drawCalls.set(geometryIndex, drawCall);
-    //   }
-    //   _renderVegetationGeometry(drawCall, vegetationData.ps, vegetationData.qs, i);
-
-    //   const onchunkremove = e => {
-    //     const {chunk: removeChunk} = e.data;
-    //     if (chunk.equalsNodeLod(removeChunk)) {
-    //       this.allocator.freeDrawCall(drawCall);
-        
-    //       tracker.removeEventListener('chunkremove', onchunkremove);
-    //     }
-    //   };
-    //   tracker.addEventListener('chunkremove', onchunkremove);
-    // }
-
-    // const drawCalls = new Map();
-    // for (let i = 0; i < vegetationData.instances.length; i++){
-    //   localBox.setFromCenterAndSize(
-    //     localVector.set(
-    //       (chunk.x + 0.5) * chunkWorldSize,
-    //       (chunk.y + 0.5) * chunkWorldSize,
-    //       (chunk.z + 0.5) * chunkWorldSize
-    //     ),
-    //     localVector2.set(chunkWorldSize, chunkWorldSize * 256, chunkWorldSize)
-    //   );
-
-    //   const drawCall = this.allocator.allocDrawCall(0, localBox);
-    //   _renderVegetationGeometry(drawCall, vegetationData.ps, vegetationData.qs, i);
-    // }
-
-
-
-
-
-    //const geometryNoise = 
-    
-    const instanceIndex = Math.floor(Math.random() * vegetationData.instances.length);
-    const geometryNoise = vegetationData.instances[instanceIndex];
-    const geometryIndex = Math.floor(geometryNoise * this.meshes.length);
-    //const geometryIndex = Math.floor(Math.random() * this.meshes.length);
-
-    localBox.setFromCenterAndSize(
-      localVector.set(
-        (chunk.x + 0.5) * chunkWorldSize,
-        (chunk.y + 0.5) * chunkWorldSize,
-        (chunk.z + 0.5) * chunkWorldSize
-      ),
-      localVector2.set(chunkWorldSize, chunkWorldSize * 256, chunkWorldSize)
-    );
-
-    const drawCall = this.allocator.allocDrawCall(geometryIndex, localBox);
-    _renderVegetationGeometry(drawCall, vegetationData.ps, vegetationData.qs, instanceIndex);
-
+      let drawCall = drawCalls.get(geometryIndex);
+      if (!drawCall) {
+        localBox.setFromCenterAndSize(
+          localVector.set(
+            (chunk.x + 0.5) * chunkWorldSize,
+            (chunk.y + 0.5) * chunkWorldSize,
+            (chunk.z + 0.5) * chunkWorldSize
+          ),
+          localVector2.set(chunkWorldSize, chunkWorldSize * 256, chunkWorldSize)
+        );
+        drawCall = this.allocator.allocDrawCall(geometryIndex, localBox);
+        drawCalls.set(geometryIndex, drawCall);
+      }
+      _renderVegetationGeometry(drawCall, vegetationData.ps, vegetationData.qs, i);
+    }
     const onchunkremove = e => {
       const {chunk: removeChunk} = e.data;
       if (chunk.equalsNodeLod(removeChunk)) {
-        this.allocator.freeDrawCall(drawCall);
-      
+        drawCalls.forEach((drawCall) => { 
+          this.allocator.freeDrawCall(drawCall);
+        } );
         tracker.removeEventListener('chunkremove', onchunkremove);
       }
     };
     tracker.addEventListener('chunkremove', onchunkremove);
-    //on chunk remove
+
   }
   
 
@@ -598,20 +542,10 @@ export default e => {
           );
           return result;
         };
-        const _loadHeightfield = async () => {
-          const heightfield = await procGenInstance.dcWorkerManager.getChunkHeightfield(
-            chunk.min.x * chunkWorldSize,
-            chunk.min.z * chunkWorldSize,
-            lod
-          );
-          return heightfield;
-        };
         const [
           vegetationData,
-          heightfield,
         ] = await Promise.all([
           _getVegetationData(),
-          _loadHeightfield(),
         ]);
   
         /* const renderData = await generator.waterMesh.getChunkRenderData(
@@ -622,7 +556,6 @@ export default e => {
   
         return {
           vegetationData,
-          heightfield,
         };
       })();
       waitUntil(loadPromise);
