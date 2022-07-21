@@ -13,15 +13,15 @@ const baseUrl = import.meta.url.replace(/(\/)[^\/\\]*$/, '$1');
 
 //#region ASSETS TO BE IMPORTED
 const glbSpecs = [
-  {
-    type: 'object',
-    url: `${baseUrl}plants.glb`,
-  },
+  // {
+  //   type: 'object',
+  //   url: `${baseUrl}plants.glb`,
+  // },
   
-  {
-    type: 'object',
-    url: `${baseUrl}rocks.glb`,
-  }, 
+  // {
+  //   type: 'object',
+  //   url: `${baseUrl}rocks.glb`,
+  // }, 
   {
     type: 'plant',
     url: `${baseUrl}trees.glb`,
