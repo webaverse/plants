@@ -13,10 +13,10 @@ const baseUrl = import.meta.url.replace(/(\/)[^\/\\]*$/, '$1');
 
 //#region ASSETS TO BE IMPORTED
 const glbSpecs = [
-  // {
-  //   type: 'object',
-  //   url: `${baseUrl}plants.glb`,
-  // },
+  {
+    type: 'object',
+    url: `${baseUrl}plants.glb`,
+  },
   
   {
     type: 'object',
@@ -246,93 +246,6 @@ vec4 q = texture2D(qTexture, pUv).xyzw;
 
   }
   
-
-
-  async addChunk(chunk, {
-    signal,
-  } = {}) {
-
-      let live = true;
-      signal.addEventListener('abort', e => {
-        live = false;
-      });
-    
-      
-      // taken out (getVegetationData())
-      const _getVegetationData = async () => {
-        const lod = 1;
-        const result = await this.procGenInstance.dcWorkerManager.createVegetationSplat(chunk.x * chunkWorldSize, chunk.z * chunkWorldSize, lod);
-        return result;
-      };
-      const result = await _getVegetationData();
-      if (!live) return;
-      // end taken out
-
-      const _renderVegetationGeometry = (drawCall, ps, qs, index) => {
-        // geometry
-
-        const pTexture = drawCall.getTexture('p');
-        const pOffset = drawCall.getTextureOffset('p');
-        const qTexture = drawCall.getTexture('q');
-        const qOffset = drawCall.getTextureOffset('q');
-
-        const instanceCount = drawCall.getInstanceCount();
-        const px = ps[index * 3];
-        const py = ps[index * 3 + 1];
-        const pz = ps[index * 3 + 2];
-        pTexture.image.data[pOffset + instanceCount * 3] = px;
-        pTexture.image.data[pOffset + instanceCount * 3 + 1] = py;
-        pTexture.image.data[pOffset + instanceCount * 3 + 2] = pz;
-
-        const qx = qs[index * 4];
-        const qy = qs[index * 4 + 1];
-        const qz = qs[index * 4 + 2];
-        const qw = qs[index * 4 + 3];
-        qTexture.image.data[qOffset + instanceCount * 4] = qx;
-        qTexture.image.data[qOffset + instanceCount * 4 + 1] = qy;
-        qTexture.image.data[qOffset + instanceCount * 4 + 2] = qz;
-        qTexture.image.data[qOffset + instanceCount * 4 + 3] = qw;
-
-        drawCall.updateTexture('p', pOffset / 3 + instanceCount, 1);
-        drawCall.updateTexture('q', qOffset / 4 + instanceCount, 1);
-
-        drawCall.incrementInstanceCount();
-
-        // physics
-        const shapeAddress = this.#getShapeAddress(drawCall.geometryIndex);
-        const physicsObject = this.#addPhysicsShape(shapeAddress, px, py, pz, qx, qy, qz, qw);
-        this.physicsObjects.push(physicsObject);
-      };
-
-
-      //const drawCalls = new Map();
-      for (let i = 0; i < result.instances.length; i++) {
-        const geometryNoise = result.instances[i];
-        const geometryIndex = Math.floor(geometryNoise * this.meshes.length);
-        
-        let drawCall = this.drawCalls.get(geometryIndex);
-        if (!drawCall) {
-          localBox.setFromCenterAndSize(
-            localVector.set(
-              (chunk.x + 0.5) * chunkWorldSize,
-              (chunk.y + 0.5) * chunkWorldSize,
-              (chunk.z + 0.5) * chunkWorldSize
-            ),
-            localVector2.set(chunkWorldSize, chunkWorldSize * 256, chunkWorldSize)
-          );
-          drawCall = this.allocator.allocDrawCall(geometryIndex, localBox);
-          this.drawCalls.set(geometryIndex, drawCall);
-        }
-        _renderVegetationGeometry(drawCall, result.ps, result.qs, i);
-      }
-
-      signal.addEventListener('abort', e => {
-        for (const drawCall of this.drawCalls.values()) {
-          this.allocator.freeDrawCall(drawCall);
-        }
-      });
-
-  }
   #getShapeAddress(geometryIndex) {
     return this.shapeAddresses[geometryIndex];
   }
@@ -386,23 +299,7 @@ class VegetationChunkGenerator {
   getPhysicsObjects() {
     return this.mesh.getPhysicsObjects();
   }
-  async generateChunk(chunk) {
-    const abortController = new AbortController();
-    const {signal} = abortController;
-    
-    chunk.binding = {
-      abortController,
-    };
-
-    try {
-      await this.mesh.addChunk(chunk, {
-        signal,
-      });
-    } catch (err) {
-      console.warn('generate chunk error', err);
-      throw err;
-    }
-  }
+  
   disposeChunk(chunk) {
     const {abortController} = chunk.binding;
     abortController.abort();
@@ -563,7 +460,6 @@ export default e => {
 
     const chunkAdd = e =>{
       const {renderData,chunk} = e.data;
-      //generator.generateChunk(e.data.chunk);
       generator.mesh.drawChunk(chunk, renderData, tracker);
     }
 
