@@ -13,15 +13,15 @@ const baseUrl = import.meta.url.replace(/(\/)[^\/\\]*$/, '$1');
 
 //#region ASSETS TO BE IMPORTED
 const glbSpecs = [
-  // {
-  //   type: 'object',
-  //   url: `${baseUrl}plants.glb`,
-  // },
-  /* 
+  {
+    type: 'object',
+    url: `${baseUrl}plants.glb`,
+  },
+  
   {
     type: 'object',
     url: `${baseUrl}rocks.glb`,
-  }, */
+  }, 
   {
     type: 'plant',
     url: `${baseUrl}trees.glb`,
@@ -165,93 +165,85 @@ vec4 q = texture2D(qTexture, pUv).xyzw;
     this.physicsObjects = [];
   }
 
+  drawChunk(chunk, renderData, tracker){
+    const {
+      vegetationData,
+    } = renderData;
+    const _renderVegetationGeometry = (drawCall, ps, qs, index) => {
+      // geometry
+      const pTexture = drawCall.getTexture('p');
+      const pOffset = drawCall.getTextureOffset('p');
+      const qTexture = drawCall.getTexture('q');
+      const qOffset = drawCall.getTextureOffset('q');
+
+      pTexture.image.data.set(ps, pOffset);
+      qTexture.image.data.set(qs, qOffset);
+
+      drawCall.updateTexture('p', pOffset, ps.length);
+      drawCall.updateTexture('q', qOffset, qs.length);
+
+      const px = ps[index * 3];
+      const py = ps[index * 3 + 1];
+      const pz = ps[index * 3 + 2];
+      pTexture.image.data[pOffset] = px;
+      pTexture.image.data[pOffset + 1] = py;
+      pTexture.image.data[pOffset + 2] = pz;
+
+      const qx = qs[index * 4];
+      const qy = qs[index * 4 + 1];
+      const qz = qs[index * 4 + 2];
+      const qw = qs[index * 4 + 3];
+      qTexture.image.data[qOffset] = qx;
+      qTexture.image.data[qOffset + 1] = qy;
+      qTexture.image.data[qOffset + 2] = qz;
+      qTexture.image.data[qOffset + 3] = qw;
+
+      drawCall.updateTexture('p', pOffset / 3, 1);
+      drawCall.updateTexture('q', qOffset / 4, 1);
+
+      drawCall.incrementInstanceCount();
+
+      // // physics
+      const shapeAddress = this.#getShapeAddress(drawCall.geometryIndex);
+      const physicsObject = this.#addPhysicsShape(shapeAddress, px, py, pz, qx, qy, qz, qw);
+      this.physicsObjects.push(physicsObject);
+    };
 
 
-  async addChunk(chunk, {
-    signal,
-  } = {}) {
-
-      let live = true;
-      signal.addEventListener('abort', e => {
-        live = false;
-      });
-    
-
-      // taken out (getVegetationData())
-      const _getVegetationData = async () => {
-        const lod = 1;
-        const result = await this.procGenInstance.dcWorkerManager.createVegetationSplat(chunk.x * chunkWorldSize, chunk.z * chunkWorldSize, lod);
-        return result;
-      };
-      const result = await _getVegetationData();
-      if (!live) return;
-      // end taken out
-
-      const _renderVegetationGeometry = (drawCall, ps, qs, index) => {
-        // geometry
-
-        const pTexture = drawCall.getTexture('p');
-        const pOffset = drawCall.getTextureOffset('p');
-        const qTexture = drawCall.getTexture('q');
-        const qOffset = drawCall.getTextureOffset('q');
-
-        const instanceCount = drawCall.getInstanceCount();
-        const px = ps[index * 3];
-        const py = ps[index * 3 + 1];
-        const pz = ps[index * 3 + 2];
-        pTexture.image.data[pOffset + instanceCount * 3] = px;
-        pTexture.image.data[pOffset + instanceCount * 3 + 1] = py;
-        pTexture.image.data[pOffset + instanceCount * 3 + 2] = pz;
-
-        const qx = qs[index * 4];
-        const qy = qs[index * 4 + 1];
-        const qz = qs[index * 4 + 2];
-        const qw = qs[index * 4 + 3];
-        qTexture.image.data[qOffset + instanceCount * 4] = qx;
-        qTexture.image.data[qOffset + instanceCount * 4 + 1] = qy;
-        qTexture.image.data[qOffset + instanceCount * 4 + 2] = qz;
-        qTexture.image.data[qOffset + instanceCount * 4 + 3] = qw;
-
-        drawCall.updateTexture('p', pOffset / 3 + instanceCount, 1);
-        drawCall.updateTexture('q', qOffset / 4 + instanceCount, 1);
-
-        drawCall.incrementInstanceCount();
-
-        // physics
-        const shapeAddress = this.#getShapeAddress(drawCall.geometryIndex);
-        const physicsObject = this.#addPhysicsShape(shapeAddress, px, py, pz, qx, qy, qz, qw);
-        this.physicsObjects.push(physicsObject);
-      };
-
-
-      //const drawCalls = new Map();
-      for (let i = 0; i < result.instances.length; i++) {
-        const geometryNoise = result.instances[i];
-        const geometryIndex = Math.floor(geometryNoise * this.meshes.length);
-        
-        let drawCall = this.drawCalls.get(geometryIndex);
-        if (!drawCall) {
-          localBox.setFromCenterAndSize(
-            localVector.set(
-              (chunk.x + 0.5) * chunkWorldSize,
-              (chunk.y + 0.5) * chunkWorldSize,
-              (chunk.z + 0.5) * chunkWorldSize
-            ),
-            localVector2.set(chunkWorldSize, chunkWorldSize * 256, chunkWorldSize)
-          );
-          drawCall = this.allocator.allocDrawCall(geometryIndex, localBox);
-          this.drawCalls.set(geometryIndex, drawCall);
-        }
-        _renderVegetationGeometry(drawCall, result.ps, result.qs, i);
+    // create drawcalls per chunk
+    const drawCalls = new Map();
+    for (let i = 0; i < vegetationData.instances.length; i++) {
+      const geometryNoise = vegetationData.instances[i];
+      const geometryIndex = Math.floor(geometryNoise * this.meshes.length);
+      
+      let drawCall = drawCalls.get(geometryIndex);
+      if (!drawCall) {
+        localBox.setFromCenterAndSize(
+          localVector.set(
+            (chunk.x + 0.5) * chunkWorldSize,
+            (chunk.y + 0.5) * chunkWorldSize,
+            (chunk.z + 0.5) * chunkWorldSize
+          ),
+          localVector2.set(chunkWorldSize, chunkWorldSize * 256, chunkWorldSize)
+        );
+        drawCall = this.allocator.allocDrawCall(geometryIndex, localBox);
+        drawCalls.set(geometryIndex, drawCall);
       }
-
-      signal.addEventListener('abort', e => {
-        for (const drawCall of this.drawCalls.values()) {
+      _renderVegetationGeometry(drawCall, vegetationData.ps, vegetationData.qs, i);
+    }
+    const onchunkremove = e => {
+      const {chunk: removeChunk} = e.data;
+      if (chunk.equalsNodeLod(removeChunk)) {
+        drawCalls.forEach((drawCall) => { 
           this.allocator.freeDrawCall(drawCall);
-        }
-      });
+        } );
+        tracker.removeEventListener('chunkremove', onchunkremove);
+      }
+    };
+    tracker.addEventListener('chunkremove', onchunkremove);
 
   }
+  
   #getShapeAddress(geometryIndex) {
     return this.shapeAddresses[geometryIndex];
   }
@@ -305,23 +297,7 @@ class VegetationChunkGenerator {
   getPhysicsObjects() {
     return this.mesh.getPhysicsObjects();
   }
-  async generateChunk(chunk) {
-    const abortController = new AbortController();
-    const {signal} = abortController;
-    
-    chunk.binding = {
-      abortController,
-    };
-
-    try {
-      await this.mesh.addChunk(chunk, {
-        signal,
-      });
-    } catch (err) {
-      console.warn('generate chunk error', err);
-      throw err;
-    }
-  }
+  
   disposeChunk(chunk) {
     const {abortController} = chunk.binding;
     abortController.abort();
@@ -448,29 +424,59 @@ export default e => {
       //relod: true,
     });
 
-    // const chunkrelod = e => {
-    //   generator.relodChunksTask(e.data.task, tracker);
-    // };
-    // tracker.addEventListener('chunkrelod', chunkrelod);
+    const chunkdatarequest = (e) => {
+      const {chunk, waitUntil, signal} = e.data;
+      const {lod} = chunk;
+
+      const loadPromise = (async () => {
+        const _getVegetationData = async () => {
+          const result = await procGenInstance.dcWorkerManager.createVegetationSplat(
+            chunk.min.x * chunkWorldSize,
+            chunk.min.z * chunkWorldSize,
+            lod
+          );
+          return result;
+        };
+        const [
+          vegetationData,
+        ] = await Promise.all([
+          _getVegetationData(),
+        ]);
+  
+        /* const renderData = await generator.waterMesh.getChunkRenderData(
+          chunk,
+          signal
+        ); */
+        signal.throwIfAborted();
+  
+        return {
+          vegetationData,
+        };
+      })();
+      waitUntil(loadPromise);
+    };
 
     const chunkAdd = e =>{
-      generator.generateChunk(e.data.chunk);
+      const {renderData,chunk} = e.data;
+      generator.mesh.drawChunk(chunk, renderData, tracker);
     }
+
     tracker.addEventListener('chunkadd', chunkAdd);
-    
-    // const chunkremove = e => {
-    //   const {chunk} = e.data;
-    //   console.log("dispose");
-    //   generator.disposeChunk(chunk);
-    // };
-    // tracker.addEventListener('chunkremove', chunkremove);
+    tracker.addEventListener('chunkdatarequest', chunkdatarequest);
 
 
     const chunksMesh = generator.getChunks();
     app.add(chunksMesh);
-
-    //scene.add(app);
     chunksMesh.updateMatrixWorld();
+
+
+    const coordupdate = e => {
+      const {coord} = e.data;
+      chunksMesh.updateCoord(coord);
+    };
+    tracker.addEventListener('coordupdate', coordupdate);
+
+
 
     cleanupFns.push(() => {
       tracker.destroy();
@@ -493,6 +499,10 @@ export default e => {
       tracker.update(localPlayer.position);
     }
   });
+
+  useCleanup(()=>{
+    tracker.destroy();
+  })
   
   // callbacks
 
