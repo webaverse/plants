@@ -471,50 +471,45 @@ export default e => {
       // trackY: true,
       //relod: true,
     });
+
     const chunkdatarequest = (e) => {
-      const {chunk, waitUntil, signal} = e.data;
-      const {lod} = chunk;
-      const loadPromise = (async () => {
-        const _getVegetationData = async () => {
-          const result = await procGenInstance.dcWorkerManager.createVegetationSplat(
-            chunk.min.x * chunkWorldSize,
-            chunk.min.z * chunkWorldSize,
-            lod
-          );
-          return result;
-        };
-        const [
-          vegetationData,
-        ] = await Promise.all([
-          _getVegetationData(),
-        ]);
-  
-        /* const renderData = await generator.waterMesh.getChunkRenderData(
-          chunk,
-          signal
-        ); */
-        signal.throwIfAborted();
-  
-        return {
-          vegetationData,
-        };
-      })();
-      waitUntil(loadPromise);
+        const {chunk, waitUntil, signal} = e.data;
+        const {lod} = chunk;
+        if (chunk.min.y === 0){
+          const loadPromise = (async () => {
+            const _getVegetationData = async () => {
+              const result = await procGenInstance.dcWorkerManager.createVegetationSplat(
+                chunk.min.x * chunkWorldSize,
+                chunk.min.z * chunkWorldSize,
+                lod
+              );
+              return result;
+            };
+            const [
+              vegetationData
+            ] = await Promise.all([
+              _getVegetationData()
+            ]);
+            /* const renderData = await generator.waterMesh.getChunkRenderData(
+              chunk,
+              signal
+            ); */
+            signal.throwIfAborted();
+      
+            return {
+              vegetationData
+            };
+          })();
+          waitUntil(loadPromise);
+        }
+
+
     };
-    let count = 0;
 
     const chunkAdd = e =>{
-      //console.log()
-     
-      if (count % 4 === 0){
-        
-        const {renderData,chunk} = e.data;
-        
-        //console.log(renderData)
+      const {renderData,chunk} = e.data;
+      if (chunk.min.y === 0)
         generator.mesh.drawChunk(chunk, renderData, tracker);
-        
-      }
-      count++;
     }
 
     tracker.addEventListener('chunkadd', chunkAdd);
