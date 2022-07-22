@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import metaversefile from 'metaversefile';
 import { _toEscapedUtf8String } from 'ethers/lib/utils';
 import { Vector3 } from 'three';
-const {useApp, usePhysics, useLocalPlayer, useFrame, useActivate, useLoaders, useInstancing, useAtlasing, useCleanup, useWorld, useLodder, useProcGenManager} = metaversefile;
+const {useApp, usePhysics, useLocalPlayer, useFrame, useActivate, useLoaders, useMeshLodder, useInstancing, useAtlasing, useCleanup, useWorld, useLodder, useProcGenManager} = metaversefile;
 
 const localVector = new THREE.Vector3();
 const localVector2 = new THREE.Vector3();
@@ -355,8 +355,12 @@ export default e => {
   const app = useApp();
   const physics = usePhysics();
   const procGenManager = useProcGenManager();
+  const world = useWorld();
+  const meshLodManager = useMeshLodder();
 
   app.name = 'vegetation';
+
+  const meshLodder = meshLodManager.createMeshLodder();
 
   const seed = app.getComponent('seed') ?? null;
   let range = app.getComponent('range') ?? null;
@@ -431,9 +435,6 @@ export default e => {
       }
     }));
 
-    
-
-    
 
     const lodMeshes = [];
     for (const name in specs) {
@@ -441,6 +442,12 @@ export default e => {
       lodMeshes.push(spec.lods);
     }
     // physics
+
+
+    
+
+
+
 
     const shapeAddresses = lodMeshes.map(lods => {
       const lastMesh = lods.findLast(lod => lod !== null);
@@ -450,7 +457,6 @@ export default e => {
     });
 
     // generator
-
     const procGenInstance = procGenManager.getInstance(seed, range);
 
     generator = new VegetationChunkGenerator(this, {
@@ -459,7 +465,6 @@ export default e => {
       shapeAddresses,
       physics
     });
-    //console.log(generator);
     const numLods = 3;
     tracker = procGenInstance.getChunkTracker({
       numLods,
@@ -496,17 +501,20 @@ export default e => {
       })();
       waitUntil(loadPromise);
     };
-    //let count = 0;
+    let count = 0;
 
     const chunkAdd = e =>{
-      //if (count < 100){
+      //console.log()
+     
+      if (count % 4 === 0){
         
         const {renderData,chunk} = e.data;
         
         //console.log(renderData)
         generator.mesh.drawChunk(chunk, renderData, tracker);
-        //count++;
-      //}
+        
+      }
+      count++;
     }
 
     tracker.addEventListener('chunkadd', chunkAdd);
@@ -516,7 +524,6 @@ export default e => {
     const chunksMesh = generator.getChunks();
     app.add(chunksMesh);
     chunksMesh.updateMatrixWorld();
-
 
     const coordupdate = e => {
       const {coord} = e.data;
@@ -548,9 +555,61 @@ export default e => {
     }
   });
 
+  const test = () => {console.log("test")}
+  const _loadMeshLodApp = async ({
+    physicsId,
+    position,
+    quaternion,
+    scale,
+  }) => {
+    console.log("te");
+    const app = await world.appManager.addTrackedApp(
+      `./metaverse_modules/mesh-lod-item/index.js`,
+      position,
+      quaternion,
+      scale,
+      [
+        {
+          key: 'physicsId',
+          value: physicsId,
+        },
+        {
+          key: 'wear',
+          value: {
+            "boneAttachment": ["leftHand", "rightHand"],
+            "position": [0, 0.1, 0],
+            "quaternion": "upVectorHipsToPosition",
+            "scale": [1, 1, 1],
+            "grabAnimation": "pick_up",
+            "holdAnimation": "pick_up_idle",
+          }
+        },
+        {
+          key: 'use',
+          value: {
+            "animation": "pickUpThrow",
+            "behavior": "throw",
+            "boneAttachment": ["leftHand", "rightHand"],
+            "position": [0, 0.1, 0],
+            "quaternion": "upVectorHipsToPosition",
+            "scale": [1, 1, 1],
+          },
+        },
+      ],
+    );
+    return app;
+  };
+
+
   useActivate((e)=>{
     console.log(e);
     generator.mesh.grabInstance(e.physicsId);
+    //test();
+    _loadMeshLodApp(e.physicsId);
+
+
+
+    
     // console.log(e.physicsId)
     // console.log(metaversefile.getPhysicsObjectByPhysicsId(e.physicsId));
     // const obj = metaversefile.getPhysicsObjectByPhysicsId(e.physicsId);
