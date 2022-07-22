@@ -1,7 +1,8 @@
 import * as THREE from 'three';
 import metaversefile from 'metaversefile';
 import { _toEscapedUtf8String } from 'ethers/lib/utils';
-const {useApp, usePhysics, useLocalPlayer, useFrame, useLoaders, useInstancing, useAtlasing, useCleanup, useWorld, useLodder, useProcGenManager} = metaversefile;
+import { Vector3 } from 'three';
+const {useApp, usePhysics, useLocalPlayer, useFrame, useActivate, useLoaders, useInstancing, useAtlasing, useCleanup, useWorld, useLodder, useProcGenManager} = metaversefile;
 
 const localVector = new THREE.Vector3();
 const localVector2 = new THREE.Vector3();
@@ -163,8 +164,9 @@ vec4 q = texture2D(qTexture, pUv).xyzw;
     this.meshes = lodMeshes;
     this.shapeAddresses = shapeAddresses;
     this.physics = physics;
-    this.drawCalls = new Map();
     this.physicsObjects = [];
+
+    this.instanceObjects = new Map();
   }
 
   drawChunk(chunk, renderData, tracker){
@@ -177,12 +179,15 @@ vec4 q = texture2D(qTexture, pUv).xyzw;
       const pOffset = drawCall.getTextureOffset('p');
       const qTexture = drawCall.getTexture('q');
       const qOffset = drawCall.getTextureOffset('q');
+      
+      //console.log(pTexture)
 
       pTexture.image.data.set(ps, pOffset);
       qTexture.image.data.set(qs, qOffset);
 
       drawCall.updateTexture('p', pOffset, ps.length);
       drawCall.updateTexture('q', qOffset, qs.length);
+
 
       const px = ps[index * 3];
       const py = ps[index * 3 + 1];
@@ -200,49 +205,65 @@ vec4 q = texture2D(qTexture, pUv).xyzw;
       qTexture.image.data[qOffset + 2] = qz;
       qTexture.image.data[qOffset + 3] = qw;
 
-      drawCall.updateTexture('p', pOffset / 3, 1);
-      drawCall.updateTexture('q', qOffset / 4, 1);
 
-      drawCall.incrementInstanceCount();
 
       // // physics
       const shapeAddress = this.#getShapeAddress(drawCall.geometryIndex);
       const physicsObject = this.#addPhysicsShape(shapeAddress, px, py, pz, qx, qy, qz, qw);
-      this.physicsObjects.push(physicsObject);
+
+      drawCall.incrementInstanceCount();
+
+      //console.warn("new m,esh")
+      //console.log(pTexture.image.data[pOffset] +","+pTexture.image.data[pOffset+1] +","+pTexture.image.data[pOffset+2]);
+      //console.log(qTexture.image.data[qOffset] +","+qTexture.image.data[qOffset+1] +","+qTexture.image.data[qOffset+2]+","+qTexture.image.data[qOffset+3]);
+      //console.log(physicsObject.position)
+      //console.log(physicsObject.quaternion)
+
+      //console.log(physicsObject.physicsId)
+      
+      this.instanceObjects.set(physicsObject.physicsId, drawCall);
+
+
+      const onchunkremove = e => {
+        const {chunk: removeChunk} = e.data;
+        if (chunk.equalsNodeLod(removeChunk)) {
+          this.allocator.freeDrawCall(drawCall);
+          this.physics.removeGeometry(physicsObject);
+          tracker.removeEventListener('chunkremove', onchunkremove);
+        }
+      };
+      tracker.addEventListener('chunkremove', onchunkremove);
     };
 
 
-    // create drawcalls per chunk
-    const drawCalls = new Map();
+
     for (let i = 0; i < vegetationData.instances.length; i++) {
       const geometryNoise = vegetationData.instances[i];
       const geometryIndex = Math.floor(geometryNoise * this.meshes.length);
       
-      let drawCall = drawCalls.get(geometryIndex);
-      if (!drawCall) {
-        localBox.setFromCenterAndSize(
-          localVector.set(
-            (chunk.x + 0.5) * chunkWorldSize,
-            (chunk.y + 0.5) * chunkWorldSize,
-            (chunk.z + 0.5) * chunkWorldSize
-          ),
-          localVector2.set(chunkWorldSize, chunkWorldSize * 256, chunkWorldSize)
-        );
+      localBox.setFromCenterAndSize(
+        localVector.set(
+          (chunk.min.x + 0.5) * chunkWorldSize,
+          (chunk.min.y + 0.5) * chunkWorldSize,
+          (chunk.min.z + 0.5) * chunkWorldSize
+        ),
+        localVector2.set(chunkWorldSize, chunkWorldSize * 256, chunkWorldSize)
+      );
+
+      let drawCall = null;
+      try {
         drawCall = this.allocator.allocDrawCall(geometryIndex, localBox);
-        drawCalls.set(geometryIndex, drawCall);
       }
-      _renderVegetationGeometry(drawCall, vegetationData.ps, vegetationData.qs, i);
+      catch(e){
+        console.warn("out of memory")
+      }
+
+      if (drawCall){
+        _renderVegetationGeometry(drawCall, vegetationData.ps, vegetationData.qs, i);
+
+
+      }
     }
-    const onchunkremove = e => {
-      const {chunk: removeChunk} = e.data;
-      if (chunk.equalsNodeLod(removeChunk)) {
-        drawCalls.forEach((drawCall) => { 
-          this.allocator.freeDrawCall(drawCall);
-        } );
-        tracker.removeEventListener('chunkremove', onchunkremove);
-      }
-    };
-    tracker.addEventListener('chunkremove', onchunkremove);
 
   }
   
@@ -264,11 +285,27 @@ vec4 q = texture2D(qTexture, pUv).xyzw;
     const scale = localVector2;
     const dynamic = false;
     const external = true;
+    //const physicsObject = this.physics.addConvexShape(shapeAddress, position, quaternion, scale, dynamic, external);
     const physicsObject = this.physics.addConvexShape(shapeAddress, position, quaternion, scale, dynamic, external);
   
     this.physicsObjects.push(physicsObject);
 
     return physicsObject;
+  }
+  grabInstance(physicsId){
+    const phys = metaversefile.getPhysicsObjectByPhysicsId(physicsId);
+    this.physics.removeGeometry(phys);
+    const drawcall = this.instanceObjects.get(physicsId);
+    drawcall.decrementInstanceCount();
+
+
+
+    //console.log(this.instanceObjects.get(physicsId));
+    //decrementInstanceCount
+
+    
+    //console.log (this.instanceObjects.get(physicsId));
+    //return this.instanceObjects.get(physicsId);
   }
   getPhysicsObjects() {
     return this.physicsObjects;
@@ -394,6 +431,10 @@ export default e => {
       }
     }));
 
+    
+
+    
+
     const lodMeshes = [];
     for (const name in specs) {
       const spec = specs[name];
@@ -425,11 +466,9 @@ export default e => {
       // trackY: true,
       //relod: true,
     });
-
     const chunkdatarequest = (e) => {
       const {chunk, waitUntil, signal} = e.data;
       const {lod} = chunk;
-
       const loadPromise = (async () => {
         const _getVegetationData = async () => {
           const result = await procGenInstance.dcWorkerManager.createVegetationSplat(
@@ -457,10 +496,17 @@ export default e => {
       })();
       waitUntil(loadPromise);
     };
+    //let count = 0;
 
     const chunkAdd = e =>{
-      const {renderData,chunk} = e.data;
-      generator.mesh.drawChunk(chunk, renderData, tracker);
+      //if (count < 100){
+        
+        const {renderData,chunk} = e.data;
+        
+        //console.log(renderData)
+        generator.mesh.drawChunk(chunk, renderData, tracker);
+        //count++;
+      //}
     }
 
     tracker.addEventListener('chunkadd', chunkAdd);
@@ -502,6 +548,17 @@ export default e => {
     }
   });
 
+  useActivate((e)=>{
+    console.log(e);
+    generator.mesh.grabInstance(e.physicsId);
+    // console.log(e.physicsId)
+    // console.log(metaversefile.getPhysicsObjectByPhysicsId(e.physicsId));
+    // const obj = metaversefile.getPhysicsObjectByPhysicsId(e.physicsId);
+    // console.log(app);
+    // console.log(obj);
+    // obj.visible = false;
+    //console.log(e.physicsId);
+  })
   useCleanup(()=>{
     tracker.destroy();
   })
