@@ -468,14 +468,14 @@ export default e => {
     const numLods = 3;
     tracker = procGenInstance.getChunkTracker({
       numLods,
-      // trackY: true,
+      //trackY: false,
       //relod: true,
     });
 
     const chunkdatarequest = (e) => {
         const {chunk, waitUntil, signal} = e.data;
         const {lod} = chunk;
-        if (chunk.min.y === 0){
+        //if (chunk.min.y === 0){
           const loadPromise = (async () => {
             const _getVegetationData = async () => {
               const result = await procGenInstance.dcWorkerManager.createVegetationSplat(
@@ -501,15 +501,13 @@ export default e => {
             };
           })();
           waitUntil(loadPromise);
-        }
-
+        //}
 
     };
 
     const chunkAdd = e =>{
       const {renderData,chunk} = e.data;
-      if (chunk.min.y === 0)
-        generator.mesh.drawChunk(chunk, renderData, tracker);
+      generator.mesh.drawChunk(chunk, renderData, tracker);
     }
 
     tracker.addEventListener('chunkadd', chunkAdd);
