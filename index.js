@@ -231,16 +231,16 @@ vec4 q = texture2D(qTexture, pUv).xyzw;
       }
       _renderVegetationGeometry(drawCall, vegetationData.ps, vegetationData.qs, i);
     }
-    const onchunkremove = e => {
-      const {chunk: removeChunk} = e.data;
-      if (chunk.equalsNodeLod(removeChunk)) {
+    const onchunkremove = () => {
+      // const {chunk: removeChunk} = e;
+      // if (chunk.equalsNodeLod(removeChunk)) {
         drawCalls.forEach((drawCall) => { 
           this.allocator.freeDrawCall(drawCall);
-        } );
-        tracker.removeEventListener('chunkremove', onchunkremove);
-      }
+        });
+        tracker.offChunkRemove(chunk, onchunkremove);
+      // }
     };
-    tracker.addEventListener('chunkremove', onchunkremove);
+    tracker.onChunkRemove(chunk, onchunkremove);
 
   }
   
@@ -425,7 +425,7 @@ export default e => {
     });
 
     const chunkdatarequest = (e) => {
-      const {chunk, waitUntil, signal} = e.data;
+      const {chunk, waitUntil, signal} = e;
       const {lod} = chunk;
 
       const loadPromise = (async () => {
@@ -455,14 +455,12 @@ export default e => {
       })();
       waitUntil(loadPromise);
     };
-
     const chunkAdd = e =>{
-      const {renderData,chunk} = e.data;
+      const {renderData,chunk} = e;
       generator.mesh.drawChunk(chunk, renderData, tracker);
-    }
-
-    tracker.addEventListener('chunkadd', chunkAdd);
-    tracker.addEventListener('chunkdatarequest', chunkdatarequest);
+    };
+    tracker.onChunkDataRequest(chunkdatarequest);
+    tracker.onChunkAdd(chunkAdd);
 
 
     const chunksMesh = generator.getChunks();
@@ -470,11 +468,11 @@ export default e => {
     chunksMesh.updateMatrixWorld();
 
 
-    const coordupdate = e => {
-      const {coord} = e.data;
+    /* const coordupdate = e => {
+      const {coord} = e;
       chunksMesh.updateCoord(coord);
     };
-    tracker.addEventListener('coordupdate', coordupdate);
+    tracker.addEventListener('coordupdate', coordupdate); */
 
 
 
