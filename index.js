@@ -176,11 +176,11 @@ vec4 q = texture2D(qTexture, pUv).xyzw;
       const qTexture = drawCall.getTexture('q');
       const qOffset = drawCall.getTextureOffset('q');
 
-      pTexture.image.data.set(ps, pOffset);
+      /* pTexture.image.data.set(ps, pOffset);
       qTexture.image.data.set(qs, qOffset);
 
       drawCall.updateTexture('p', pOffset, ps.length);
-      drawCall.updateTexture('q', qOffset, qs.length);
+      drawCall.updateTexture('q', qOffset, qs.length); */
 
       const px = ps[index * 3];
       const py = ps[index * 3 + 1];
@@ -198,12 +198,12 @@ vec4 q = texture2D(qTexture, pUv).xyzw;
       qTexture.image.data[qOffset + 2] = qz;
       qTexture.image.data[qOffset + 3] = qw;
 
-      drawCall.updateTexture('p', pOffset / 3, 1);
-      drawCall.updateTexture('q', qOffset / 4, 1);
+      drawCall.updateTexture('p', pOffset, 3);
+      drawCall.updateTexture('q', qOffset, 4);
 
       drawCall.incrementInstanceCount();
 
-      // // physics
+      // physics
       const shapeAddress = this.#getShapeAddress(drawCall.geometryIndex);
       const physicsObject = this.#addPhysicsShape(shapeAddress, px, py, pz, qx, qy, qz, qw);
       this.physicsObjects.push(physicsObject);
