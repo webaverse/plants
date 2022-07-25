@@ -49,9 +49,9 @@ class VegetationMesh extends InstancedBatchedMesh {
     procGenInstance,
     lodMeshes = [],
     shapeAddresses = [],
+    physicsGeometries = [],
     physics = null,
   } = {}) {
-
     // instancing
     const {
       atlasTextures,
@@ -60,7 +60,7 @@ class VegetationMesh extends InstancedBatchedMesh {
       textures: ['map', 'normalMap'],
       attributes: ['position', 'normal', 'uv'],
     });
-
+    //console.log(chunkGenerator);
     // allocator
 
     const allocator = new InstancedGeometryAllocator(lod0Geometries, [
@@ -163,10 +163,13 @@ vec4 q = texture2D(qTexture, pUv).xyzw;
     this.procGenInstance = procGenInstance;
     this.meshes = lodMeshes;
     this.shapeAddresses = shapeAddresses;
+    this.physicsGeometries = physicsGeometries;
     this.physics = physics;
     this.physicsObjects = [];
 
     this.instanceObjects = new Map();
+
+    console.log(this.physicsGeometries)
   }
 
   drawChunk(chunk, renderData, tracker){
@@ -205,21 +208,11 @@ vec4 q = texture2D(qTexture, pUv).xyzw;
       qTexture.image.data[qOffset + 2] = qz;
       qTexture.image.data[qOffset + 3] = qw;
 
-
-
       // // physics
       const shapeAddress = this.#getShapeAddress(drawCall.geometryIndex);
-      const physicsObject = this.#addPhysicsShape(shapeAddress, px, py, pz, qx, qy, qz, qw);
+      const physicsObject = this.#addPhysicsShape(shapeAddress, drawCall.geometryIndex, px, py, pz, qx, qy, qz, qw);
 
       drawCall.incrementInstanceCount();
-
-      //console.warn("new m,esh")
-      //console.log(pTexture.image.data[pOffset] +","+pTexture.image.data[pOffset+1] +","+pTexture.image.data[pOffset+2]);
-      //console.log(qTexture.image.data[qOffset] +","+qTexture.image.data[qOffset+1] +","+qTexture.image.data[qOffset+2]+","+qTexture.image.data[qOffset+3]);
-      //console.log(physicsObject.position)
-      //console.log(physicsObject.quaternion)
-
-      //console.log(physicsObject.physicsId)
       
       this.instanceObjects.set(physicsObject.physicsId, drawCall);
 
@@ -228,7 +221,7 @@ vec4 q = texture2D(qTexture, pUv).xyzw;
         const {chunk: removeChunk} = e.data;
         if (chunk.equalsNodeLod(removeChunk)) {
           this.allocator.freeDrawCall(drawCall);
-          this.physics.removeGeometry(physicsObject);
+          //this.physics.removeGeometry(physicsObject);
           tracker.removeEventListener('chunkremove', onchunkremove);
         }
       };
@@ -250,19 +243,8 @@ vec4 q = texture2D(qTexture, pUv).xyzw;
         localVector2.set(chunkWorldSize, chunkWorldSize * 256, chunkWorldSize)
       );
 
-      let drawCall = null;
-      try {
-        drawCall = this.allocator.allocDrawCall(geometryIndex, localBox);
-      }
-      catch(e){
-        console.warn("out of memory")
-      }
-
-      if (drawCall){
-        _renderVegetationGeometry(drawCall, vegetationData.ps, vegetationData.qs, i);
-
-
-      }
+      let drawCall = this.allocator.allocDrawCall(geometryIndex, localBox);
+      _renderVegetationGeometry(drawCall, vegetationData.ps, vegetationData.qs, i);
     }
 
   }
@@ -270,7 +252,11 @@ vec4 q = texture2D(qTexture, pUv).xyzw;
   #getShapeAddress(geometryIndex) {
     return this.shapeAddresses[geometryIndex];
   }
-  #addPhysicsShape(shapeAddress, px, py, pz, qx, qy, qz, qw) {    
+  #getShapeGeometry(geometryIndex){
+    return this.physicsGeometries[geometryIndex];
+  }
+  
+  #addPhysicsShape(shapeAddress, geometryIndex, px, py, pz, qx, qy, qz, qw) {    
     localVector.set(px, py, pz);
     localQuaternion.set(qx, qy, qz, qw);
     localVector2.set(1, 1, 1);
@@ -285,27 +271,21 @@ vec4 q = texture2D(qTexture, pUv).xyzw;
     const scale = localVector2;
     const dynamic = false;
     const external = true;
-    //const physicsObject = this.physics.addConvexShape(shapeAddress, position, quaternion, scale, dynamic, external);
-    const physicsObject = this.physics.addConvexShape(shapeAddress, position, quaternion, scale, dynamic, external);
+
+    const physicsGeometry = this.#getShapeGeometry(geometryIndex);
+    const physicsObject = this.physics.addConvexShape(shapeAddress, position, quaternion, scale, dynamic, external,physicsGeometry);
   
     this.physicsObjects.push(physicsObject);
 
     return physicsObject;
   }
+  
   grabInstance(physicsId){
     const phys = metaversefile.getPhysicsObjectByPhysicsId(physicsId);
     this.physics.removeGeometry(phys);
     const drawcall = this.instanceObjects.get(physicsId);
     drawcall.decrementInstanceCount();
 
-
-
-    //console.log(this.instanceObjects.get(physicsId));
-    //decrementInstanceCount
-
-    
-    //console.log (this.instanceObjects.get(physicsId));
-    //return this.instanceObjects.get(physicsId);
   }
   getPhysicsObjects() {
     return this.physicsObjects;
@@ -317,18 +297,22 @@ class VegetationChunkGenerator {
     procGenInstance = null,
     lodMeshes = [],
     shapeAddresses = [],
+    physicsGeometries = [],
     physics = null,
   } = {}) {
     // parameters
     this.parent = parent;
 
-    // mesh
+    this.physicsMeshes = [];
+
     this.mesh = new VegetationMesh({
       procGenInstance,
       lodMeshes,
       shapeAddresses,
+      physicsGeometries,
       physics,
     });
+    this
   }
   getChunks() {
     return this.mesh;
@@ -336,7 +320,6 @@ class VegetationChunkGenerator {
   getPhysicsObjects() {
     return this.mesh.getPhysicsObjects();
   }
-  
   disposeChunk(chunk) {
     const {abortController} = chunk.binding;
     abortController.abort();
@@ -456,6 +439,18 @@ export default e => {
       return shapeAddress;
     });
 
+    //new
+    const physicsGeometries = shapeAddresses.map(shapeAddress =>{
+      const physicsObject = physics.addConvexShape(shapeAddress, new THREE.Vector3(), new THREE.Quaternion(), new THREE.Vector3(1,1,1), false, true);
+      const geom = physicsObject.physicsMesh.geometry;
+      physics.removeGeometry(physicsObject);
+      return geom;
+    })
+    //console.log(physicsObjects)
+    //console.log(physicsGeometries)
+    //console.log(physics.addConvexShape)
+    //end new
+
     // generator
     const procGenInstance = procGenManager.getInstance(seed, range);
 
@@ -463,13 +458,12 @@ export default e => {
       procGenInstance,
       lodMeshes,
       shapeAddresses,
+      physicsGeometries,
       physics
     });
-    const numLods = 3;
+    const numLods = 1;
     tracker = procGenInstance.getChunkTracker({
-      numLods,
-      //trackY: false,
-      //relod: true,
+      minLodRange:numLods
     });
 
     const chunkdatarequest = (e) => {
@@ -507,7 +501,8 @@ export default e => {
 
     const chunkAdd = e =>{
       const {renderData,chunk} = e.data;
-      generator.mesh.drawChunk(chunk, renderData, tracker);
+      if (chunk.min.y === 0)
+        generator.mesh.drawChunk(chunk, renderData, tracker);
     }
 
     tracker.addEventListener('chunkadd', chunkAdd);
