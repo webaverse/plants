@@ -169,6 +169,7 @@ vec4 q = texture2D(qTexture, pUv).xyzw;
     const {
       vegetationData,
     } = renderData;
+    const localPhysicsObjects = [];
     const _renderVegetationGeometry = (drawCall, ps, qs, index) => {
       // geometry
       const pTexture = drawCall.getTexture('p');
@@ -207,6 +208,7 @@ vec4 q = texture2D(qTexture, pUv).xyzw;
       const shapeAddress = this.#getShapeAddress(drawCall.geometryIndex);
       const physicsObject = this.#addPhysicsShape(shapeAddress, px, py, pz, qx, qy, qz, qw);
       this.physicsObjects.push(physicsObject);
+      localPhysicsObjects.push(physicsObject);
     };
 
 
