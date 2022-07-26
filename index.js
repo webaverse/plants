@@ -219,6 +219,7 @@ vec4 q = texture2D(qTexture, pUv).xyzw;
       
       const onchunkremove = e => {
           this.allocator.freeDrawCall(drawCall);
+          this.physics.removeGeometry(physicsObject);
           tracker.offChunkRemove(chunk, onchunkremove);
       };
       tracker.onChunkRemove(chunk, onchunkremove);
