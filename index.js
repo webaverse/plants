@@ -207,8 +207,6 @@ vec4 q = texture2D(qTexture, pUv).xyzw;
       drawCall.updateTexture('p', pOffset, ps.length);
       drawCall.updateTexture('q', qOffset, qs.length);
 
-      console.log(qTexture.image.data[qOffset]);
-
       // // physics
       const shapeAddress = this.#getShapeAddress(drawCall.geometryIndex);
       const physicsObject = this.#addPhysicsShape(shapeAddress, drawCall.geometryIndex, px, py, pz, qx, qy, qz, qw);
