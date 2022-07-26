@@ -8,6 +8,7 @@ const localVector = new THREE.Vector3();
 const localVector2 = new THREE.Vector3();
 const localQuaternion = new THREE.Quaternion();
 const localMatrix = new THREE.Matrix4();
+const localMatrix2 = new THREE.Matrix4();
 const localBox = new THREE.Box3();
 
 const baseUrl = import.meta.url.replace(/(\/)[^\/\\]*$/, '$1');
@@ -168,8 +169,6 @@ vec4 q = texture2D(qTexture, pUv).xyzw;
     this.physicsObjects = [];
 
     this.instanceObjects = new Map();
-
-    console.log(this.physicsGeometries)
   }
 
   drawChunk(chunk, renderData, tracker){
@@ -178,19 +177,16 @@ vec4 q = texture2D(qTexture, pUv).xyzw;
     } = renderData;
     const _renderVegetationGeometry = (drawCall, ps, qs, index) => {
       // geometry
+      //console.log(ps)
       const pTexture = drawCall.getTexture('p');
       const pOffset = drawCall.getTextureOffset('p');
       const qTexture = drawCall.getTexture('q');
       const qOffset = drawCall.getTextureOffset('q');
-      
-      //console.log(pTexture)
 
       pTexture.image.data.set(ps, pOffset);
       qTexture.image.data.set(qs, qOffset);
 
-      drawCall.updateTexture('p', pOffset, ps.length);
-      drawCall.updateTexture('q', qOffset, qs.length);
-
+      
 
       const px = ps[index * 3];
       const py = ps[index * 3 + 1];
@@ -208,6 +204,11 @@ vec4 q = texture2D(qTexture, pUv).xyzw;
       qTexture.image.data[qOffset + 2] = qz;
       qTexture.image.data[qOffset + 3] = qw;
 
+      drawCall.updateTexture('p', pOffset, ps.length);
+      drawCall.updateTexture('q', qOffset, qs.length);
+
+      console.log(qTexture.image.data[qOffset]);
+
       // // physics
       const shapeAddress = this.#getShapeAddress(drawCall.geometryIndex);
       const physicsObject = this.#addPhysicsShape(shapeAddress, drawCall.geometryIndex, px, py, pz, qx, qy, qz, qw);
@@ -215,21 +216,15 @@ vec4 q = texture2D(qTexture, pUv).xyzw;
       drawCall.incrementInstanceCount();
       
       this.instanceObjects.set(physicsObject.physicsId, drawCall);
-
-
+      
       const onchunkremove = e => {
-        const {chunk: removeChunk} = e.data;
-        if (chunk.equalsNodeLod(removeChunk)) {
           this.allocator.freeDrawCall(drawCall);
-          //this.physics.removeGeometry(physicsObject);
-          tracker.removeEventListener('chunkremove', onchunkremove);
-        }
+          tracker.offChunkRemove(chunk, onchunkremove);
       };
-      tracker.addEventListener('chunkremove', onchunkremove);
+      tracker.onChunkRemove(chunk, onchunkremove);
     };
 
-
-
+    //for (let i = 0; i < 2; i++) {
     for (let i = 0; i < vegetationData.instances.length; i++) {
       const geometryNoise = vegetationData.instances[i];
       const geometryIndex = Math.floor(geometryNoise * this.meshes.length);
@@ -356,20 +351,6 @@ export default e => {
     );
   }
 
-  const frameFns = [];
-  useFrame(({timestamp, timeDiff}) => {
-    for (const frameFn of frameFns) {
-      frameFn(timestamp, timeDiff);
-    }
-  });
-
-  const cleanupFns = [];
-  useCleanup(() => {
-    for (const cleanupFn of cleanupFns) {
-      cleanupFn();
-    }
-  });
-
   let generator = null;
   let tracker = null;
   const specs = {};
@@ -446,6 +427,8 @@ export default e => {
       physics.removeGeometry(physicsObject);
       return geom;
     })
+
+    
     //console.log(physicsObjects)
     //console.log(physicsGeometries)
     //console.log(physics.addConvexShape)
@@ -463,11 +446,10 @@ export default e => {
     });
     const numLods = 1;
     tracker = procGenInstance.getChunkTracker({
-      minLodRange:numLods
+      //minLodRange:numLods
     });
-
     const chunkdatarequest = (e) => {
-        const {chunk, waitUntil, signal} = e.data;
+        const {chunk, waitUntil, signal} = e;
         const {lod} = chunk;
         //if (chunk.min.y === 0){
           const loadPromise = (async () => {
@@ -498,32 +480,27 @@ export default e => {
         //}
 
     };
-
     const chunkAdd = e =>{
-      const {renderData,chunk} = e.data;
+      const {renderData,chunk} = e;
       if (chunk.min.y === 0)
         generator.mesh.drawChunk(chunk, renderData, tracker);
     }
-
-    tracker.addEventListener('chunkadd', chunkAdd);
-    tracker.addEventListener('chunkdatarequest', chunkdatarequest);
+    tracker.onChunkDataRequest(chunkdatarequest);
+    tracker.onChunkAdd(chunkAdd);
+    
 
 
     const chunksMesh = generator.getChunks();
     app.add(chunksMesh);
     chunksMesh.updateMatrixWorld();
 
-    const coordupdate = e => {
-      const {coord} = e.data;
-      chunksMesh.updateCoord(coord);
-    };
-    tracker.addEventListener('coordupdate', coordupdate);
+    // const coordupdate = e => {
+    //   const {coord} = e.data;
+    //   chunksMesh.updateCoord(coord);
+    // };
+    // tracker.addEventListener('coordupdate', coordupdate);
 
 
-
-    cleanupFns.push(() => {
-      tracker.destroy();
-    });
 
     if (wait) {
       await new Promise((accept, reject) => {
@@ -537,9 +514,16 @@ export default e => {
   })());
 
   useFrame(({timestamp, timeDiff}) => {
-    if (tracker && !range) {
+    if (!range && tracker) {
       const localPlayer = useLocalPlayer();
-      tracker.update(localPlayer.position);
+      localMatrix
+        .copy(localPlayer.matrixWorld)
+        .premultiply(localMatrix2.copy(app.matrixWorld).invert())
+        .decompose(localVector, localQuaternion, localVector2);
+
+      tracker.update(localVector);
+      //heightfieldMapper.update(localVector);
+      //tracker.update(localPlayer.position);
     }
   });
 
@@ -550,7 +534,6 @@ export default e => {
     quaternion,
     scale,
   }) => {
-    console.log("te");
     const app = await world.appManager.addTrackedApp(
       `./metaverse_modules/mesh-lod-item/index.js`,
       position,
@@ -595,22 +578,11 @@ export default e => {
     //test();
     _loadMeshLodApp(e.physicsId);
 
-
-
-    
-    // console.log(e.physicsId)
-    // console.log(metaversefile.getPhysicsObjectByPhysicsId(e.physicsId));
-    // const obj = metaversefile.getPhysicsObjectByPhysicsId(e.physicsId);
-    // console.log(app);
-    // console.log(obj);
-    // obj.visible = false;
-    //console.log(e.physicsId);
   })
   useCleanup(()=>{
     tracker.destroy();
   })
   
-  // callbacks
 
   app.getPhysicsObjects = () => generator ? generator.getPhysicsObjects() : [];
 
