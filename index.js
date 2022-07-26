@@ -169,6 +169,7 @@ vec4 q = texture2D(qTexture, pUv).xyzw;
     const {
       vegetationData,
     } = renderData;
+    const localPhysicsObjects = [];
     const _renderVegetationGeometry = (drawCall, ps, qs, index) => {
       // geometry
       const pTexture = drawCall.getTexture('p');
@@ -207,6 +208,7 @@ vec4 q = texture2D(qTexture, pUv).xyzw;
       const shapeAddress = this.#getShapeAddress(drawCall.geometryIndex);
       const physicsObject = this.#addPhysicsShape(shapeAddress, px, py, pz, qx, qy, qz, qw);
       this.physicsObjects.push(physicsObject);
+      localPhysicsObjects.push(physicsObject);
     };
 
 
@@ -232,13 +234,14 @@ vec4 q = texture2D(qTexture, pUv).xyzw;
       _renderVegetationGeometry(drawCall, vegetationData.ps, vegetationData.qs, i);
     }
     const onchunkremove = () => {
-      // const {chunk: removeChunk} = e;
-      // if (chunk.equalsNodeLod(removeChunk)) {
-        drawCalls.forEach((drawCall) => { 
-          this.allocator.freeDrawCall(drawCall);
-        });
-        tracker.offChunkRemove(chunk, onchunkremove);
-      // }
+      drawCalls.forEach((drawCall) => {
+        this.allocator.freeDrawCall(drawCall);
+      });
+      tracker.offChunkRemove(chunk, onchunkremove);
+
+      const firstLocalPhysicsObject = localPhysicsObjects[0];
+      const firstLocalPhysicsObjectIndex = this.physicsObjects.indexOf(firstLocalPhysicsObject);
+      this.physicsObjects.splice(firstLocalPhysicsObjectIndex, localPhysicsObjects.length);
     };
     tracker.onChunkRemove(chunk, onchunkremove);
 
