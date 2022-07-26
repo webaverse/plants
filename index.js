@@ -234,13 +234,14 @@ vec4 q = texture2D(qTexture, pUv).xyzw;
       _renderVegetationGeometry(drawCall, vegetationData.ps, vegetationData.qs, i);
     }
     const onchunkremove = () => {
-      // const {chunk: removeChunk} = e;
-      // if (chunk.equalsNodeLod(removeChunk)) {
-        drawCalls.forEach((drawCall) => { 
-          this.allocator.freeDrawCall(drawCall);
-        });
-        tracker.offChunkRemove(chunk, onchunkremove);
-      // }
+      drawCalls.forEach((drawCall) => {
+        this.allocator.freeDrawCall(drawCall);
+      });
+      tracker.offChunkRemove(chunk, onchunkremove);
+
+      const firstLocalPhysicsObject = localPhysicsObjects[0];
+      const firstLocalPhysicsObjectIndex = this.physicsObjects.indexOf(firstLocalPhysicsObject);
+      this.physicsObjects.splice(firstLocalPhysicsObjectIndex, localPhysicsObjects.length);
     };
     tracker.onChunkRemove(chunk, onchunkremove);
 
