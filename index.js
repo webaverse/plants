@@ -262,7 +262,10 @@ vec4 q = texture2D(qTexture, pUv).xyzw;
     const scale = localVector2;
     const dynamic = false;
     const external = true;
+    debugger
     const physicsObject = this.physics.addConvexShape(shapeAddress, position, quaternion, scale, dynamic, external);
+    const result = this.physics.setTrigger(physicsObject.physicsId);
+    console.log('setTrigger', result)
   
     this.physicsObjects.push(physicsObject);
 
@@ -316,6 +319,20 @@ export default e => {
   const app = useApp();
   const physics = usePhysics();
   const procGenManager = useProcGenManager();
+
+  const localPlayer = useLocalPlayer();
+  app.addEventListener('triggerin', event => {
+    console.log('repo: triggerin: ', event.myPhysicsId, event.oppositePhysicsId);
+    if (localPlayer.characterController && event.oppositePhysicsId === localPlayer.characterController.physicsId) {
+      // physicsConvex.material.color.set('cyan');
+    }
+  });
+  app.addEventListener('triggerout', event => {
+    console.log('repo: triggerout: ', event.myPhysicsId, event.oppositePhysicsId);
+    if (localPlayer.characterController && event.oppositePhysicsId === localPlayer.characterController.physicsId) {
+      // physicsConvex.material.color.set('gray');
+    }
+  });
 
   app.name = 'vegetation';
 
