@@ -290,14 +290,6 @@ vec4 q = texture2D(qTexture, pUv).xyzw;
   }
 }
 
-class VegetationAppData{
-  constructor(physicsGeometry, {
-    type ="",
-    
-  }){
-    
-  }
-}
 
 class VegetationChunkGenerator {
   constructor(parent, {
@@ -338,6 +330,29 @@ class VegetationChunkGenerator {
 
   destroy() {
     // nothing; the owning lod tracker disposes of our contents
+  }
+}
+
+class VegetationAppData{
+  constructor( name, lods, type, physics)
+  {
+    this.name = name;
+    this.lods = lods;
+    this.type = type;
+    this.shapeAddress = this.getShapeAdress(physics);
+    this.physicsGeometry = this.getPhysicsGeometry(physics);
+  }
+  getShapeAdress(physics){
+    const lastMesh = this.lods.findLast(lod => lod !== null);
+    const buffer = physics.cookConvexGeometry(lastMesh);
+    const shapeAddress = physics.createConvexShape(buffer);
+    return shapeAddress;
+  }
+  getPhysicsGeometry(physics){
+    const physicsObject = physics.addConvexShape(this.shapeAddress, new THREE.Vector3(), new THREE.Quaternion(), new THREE.Vector3(1,1,1), false, true);
+    const geometry = physicsObject.physicsMesh.geometry;
+    physics.removeGeometry(physicsObject);
+    return geometry;
   }
 }
 
@@ -418,13 +433,25 @@ export default e => {
 
 
     const lodMeshes = [];
+
     for (const name in specs) {
       const spec = specs[name];
-      console.log(spec.type);
+      console.log(spec.lods);
       lodMeshes.push(spec.lods);
     }
     // physics
 
+
+    // send lod meshes
+    // 
+    
+    
+    //end 
+    for (const name in specs) {
+      const spec = specs[name];
+      console.log(spec.lods);
+      lodMeshes.push(spec.lods);
+    }
 
 
     const shapeAddresses = lodMeshes.map(lods => {
@@ -442,10 +469,27 @@ export default e => {
       return geom;
     })
 
+    const vegetationAppDatas = [];
+    for (const name in specs) {
+      const spec = specs[name];
+      console.log(name);
+      console.log(spec.lods);
+      console.log(spec.type);
+      console.log(physics)
+      vegetationAppDatas.push (new VegetationAppData(name, spec.lods, spec.type, physics))
+    }
+
+    // console.log(vegetationAppDatas);
+
     //shape adress
     //physics geometry
     //app name
-
+    // ideally:
+    // generator = new VegetationChunkGenerator(this, {
+    //   procGenInstance,
+    //   vegetationAppDataArray
+    //   physics
+    // });
 
     // generator
     const procGenInstance = procGenManager.getInstance(seed, range);
