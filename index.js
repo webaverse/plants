@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import metaversefile from 'metaversefile';
 import { _toEscapedUtf8String } from 'ethers/lib/utils';
 import { Vector3 } from 'three';
-const {useApp, usePhysics, useLocalPlayer, useFrame, useActivate, useLoaders, useMeshLodder, useInstancing, useAtlasing, useCleanup, useWorld, useLodder, useProcGenManager} = metaversefile;
+const {useApp, usePhysics, useLocalPlayer, useFrame, useActivate, useLoaders, useMeshLodder, useInstancing, useAtlasing, useCleanup, useWorld, useLodder, useProcGenManager, useDefaultModules} = metaversefile;
 
 const localVector = new THREE.Vector3();
 const localVector2 = new THREE.Vector3();
@@ -15,17 +15,16 @@ const baseUrl = import.meta.url.replace(/(\/)[^\/\\]*$/, '$1');
 
 //#region ASSETS TO BE IMPORTED
 const glbSpecs = [
-  // {
-  //   type: 'object',
-  //   url: `${baseUrl}plants.glb`,
-  // },
-  
-  // {
-  //   type: 'object',
-  //   url: `${baseUrl}rocks.glb`,
-  // }, 
   {
-    type: 'plant',
+    type: 'plants',
+    url: `${baseUrl}plants.glb`,
+  },
+  {
+    type: 'rock',
+    url: `${baseUrl}rocks.glb`,
+  }, 
+  {
+    type: 'trees',
     url: `${baseUrl}trees.glb`,
   },
 ];
@@ -182,11 +181,7 @@ vec4 q = texture2D(qTexture, pUv).xyzw;
       const qTexture = drawCall.getTexture('q');
       const qOffset = drawCall.getTextureOffset('q');
 
-      /* pTexture.image.data.set(ps, pOffset);
-      qTexture.image.data.set(qs, qOffset);
-
-      drawCall.updateTexture('p', pOffset, ps.length);
-      drawCall.updateTexture('q', qOffset, qs.length); */
+      
 
       const px = ps[index * 3];
       const py = ps[index * 3 + 1];
@@ -216,7 +211,6 @@ vec4 q = texture2D(qTexture, pUv).xyzw;
       drawCall.incrementInstanceCount();
       
       this.instanceObjects.set(physicsObject.physicsId, drawCall);
-      
     };
 
       
@@ -290,10 +284,18 @@ vec4 q = texture2D(qTexture, pUv).xyzw;
     this.physics.removeGeometry(phys);
     const drawcall = this.instanceObjects.get(physicsId);
     drawcall.decrementInstanceCount();
-
   }
   getPhysicsObjects() {
     return this.physicsObjects;
+  }
+}
+
+class VegetationAppData{
+  constructor(physicsGeometry, {
+    type ="",
+    
+  }){
+    
   }
 }
 
@@ -345,6 +347,9 @@ export default e => {
   const procGenManager = useProcGenManager();
   const world = useWorld();
   const meshLodManager = useMeshLodder();
+  const lodItem = useDefaultModules().modules.meshLodItem;
+
+  console.log(lodItem)
 
   app.name = 'vegetation';
 
@@ -360,6 +365,8 @@ export default e => {
       new THREE.Vector3(range[1][0], range[1][1], range[1][2])
     );
   }
+
+  
 
   let generator = null;
   let tracker = null;
@@ -413,13 +420,10 @@ export default e => {
     const lodMeshes = [];
     for (const name in specs) {
       const spec = specs[name];
+      console.log(spec.type);
       lodMeshes.push(spec.lods);
     }
     // physics
-
-
-    
-
 
 
 
@@ -438,11 +442,10 @@ export default e => {
       return geom;
     })
 
-    
-    //console.log(physicsObjects)
-    //console.log(physicsGeometries)
-    //console.log(physics.addConvexShape)
-    //end new
+    //shape adress
+    //physics geometry
+    //app name
+
 
     // generator
     const procGenInstance = procGenManager.getInstance(seed, range);
@@ -578,12 +581,15 @@ export default e => {
         },
       ],
     );
+    console.log(app);
+    app.wear();
     return app;
   };
 
 
   useActivate((e)=>{
-    console.log(e);
+    console.log(e)
+    console.log("khdj");
     generator.mesh.grabInstance(e.physicsId);
     //test();
     _loadMeshLodApp(e.physicsId);
