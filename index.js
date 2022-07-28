@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import metaversefile from 'metaversefile';
 import { _toEscapedUtf8String } from 'ethers/lib/utils';
 import { Vector3 } from 'three';
-const {useApp, usePhysics, useLocalPlayer, useFrame, useActivate, useLoaders, useMeshLodder, useInstancing, useAtlasing, useCleanup, useWorld, useLodder, useProcGenManager} = metaversefile;
+const {useApp, usePhysics, useLocalPlayer, useFrame, useActivate, useLoaders, useMeshLodder, useInstancing, useAtlasing, useCleanup, useWorld, useLodder, useProcGenManager, useDefaultModules} = metaversefile;
 
 const localVector = new THREE.Vector3();
 const localVector2 = new THREE.Vector3();
@@ -15,17 +15,16 @@ const baseUrl = import.meta.url.replace(/(\/)[^\/\\]*$/, '$1');
 
 //#region ASSETS TO BE IMPORTED
 const glbSpecs = [
-  // {
-  //   type: 'object',
-  //   url: `${baseUrl}plants.glb`,
-  // },
-  
-  // {
-  //   type: 'object',
-  //   url: `${baseUrl}rocks.glb`,
-  // }, 
   {
-    type: 'plant',
+    type: 'plants',
+    url: `${baseUrl}plants.glb`,
+  },
+  {
+    type: 'rock',
+    url: `${baseUrl}rocks.glb`,
+  }, 
+  {
+    type: 'trees',
     url: `${baseUrl}trees.glb`,
   },
 ];
@@ -46,21 +45,23 @@ const {createTextureAtlas} = useAtlasing();
 class VegetationMesh extends InstancedBatchedMesh {
   constructor({
     procGenInstance,
+    vegetationAppDataArray =[],
     lodMeshes = [],
     shapeAddresses = [],
     physicsGeometries = [],
     physics = null,
   } = {}) {
     // instancing
+
+
     const {
       atlasTextures,
       geometries: lod0Geometries,
-    } = createTextureAtlas(lodMeshes.map(lods => lods[0]), {
+    } = createTextureAtlas(vegetationAppDataArray.map(vegetationApp => vegetationApp.lods[0]),{
       textures: ['map', 'normalMap'],
       attributes: ['position', 'normal', 'uv'],
-    });
-    //console.log(chunkGenerator);
-    // allocator
+    })
+
 
     const allocator = new InstancedGeometryAllocator(lod0Geometries, [
       {
@@ -160,9 +161,10 @@ vec4 q = texture2D(qTexture, pUv).xyzw;
     this.frustumCulled = false;
     
     this.procGenInstance = procGenInstance;
-    this.meshes = lodMeshes;
-    this.shapeAddresses = shapeAddresses;
-    this.physicsGeometries = physicsGeometries;
+    //this.meshes = lodMeshes;
+    this.vegetationAppsData = vegetationAppDataArray;
+    //this.shapeAddresses = shapeAddresses;
+    //this.physicsGeometries = physicsGeometries;
     this.physics = physics;
     this.physicsObjects = [];
 
@@ -182,11 +184,7 @@ vec4 q = texture2D(qTexture, pUv).xyzw;
       const qTexture = drawCall.getTexture('q');
       const qOffset = drawCall.getTextureOffset('q');
 
-      /* pTexture.image.data.set(ps, pOffset);
-      qTexture.image.data.set(qs, qOffset);
-
-      drawCall.updateTexture('p', pOffset, ps.length);
-      drawCall.updateTexture('q', qOffset, qs.length); */
+      
 
       const px = ps[index * 3];
       const py = ps[index * 3 + 1];
@@ -214,16 +212,15 @@ vec4 q = texture2D(qTexture, pUv).xyzw;
       localPhysicsObjects.push(physicsObject);
 
       drawCall.incrementInstanceCount();
-      
-      this.instanceObjects.set(physicsObject.physicsId, drawCall);
-      
+      const appData = this.vegetationAppsData[drawCall.geometryIndex];
+      this.instanceObjects.set(physicsObject.physicsId, {drawCall, appData});
     };
 
       
     const drawcalls = [];
     for (let i = 0; i < vegetationData.instances.length; i++) {
       const geometryNoise = vegetationData.instances[i];
-      const geometryIndex = Math.floor(geometryNoise * this.meshes.length);
+      const geometryIndex = Math.floor(geometryNoise * this.vegetationAppsData.length);
       
       localBox.setFromCenterAndSize(
         localVector.set(
@@ -255,12 +252,13 @@ vec4 q = texture2D(qTexture, pUv).xyzw;
   }
   
   #getShapeAddress(geometryIndex) {
-    return this.shapeAddresses[geometryIndex];
+    return this.vegetationAppsData[geometryIndex].shapeAddress;
+    //return this.shapeAddresses[geometryIndex];
   }
   #getShapeGeometry(geometryIndex){
-    return this.physicsGeometries[geometryIndex];
+    return  this.vegetationAppsData[geometryIndex].physicsGeometry;
+    //return this.physicsGeometries[geometryIndex];
   }
-  
   #addPhysicsShape(shapeAddress, geometryIndex, px, py, pz, qx, qy, qz, qw) {    
     localVector.set(px, py, pz);
     localQuaternion.set(qx, qy, qz, qw);
@@ -288,18 +286,21 @@ vec4 q = texture2D(qTexture, pUv).xyzw;
   grabInstance(physicsId){
     const phys = metaversefile.getPhysicsObjectByPhysicsId(physicsId);
     this.physics.removeGeometry(phys);
-    const drawcall = this.instanceObjects.get(physicsId);
-    drawcall.decrementInstanceCount();
-
+    const {drawCall, appData} = this.instanceObjects.get(physicsId);
+    drawCall.decrementInstanceCount();
+    console.log(appData.type)
+    //appData.doSomething or get some info
   }
   getPhysicsObjects() {
     return this.physicsObjects;
   }
 }
 
+
 class VegetationChunkGenerator {
   constructor(parent, {
     procGenInstance = null,
+    vegetationAppDataArray = [],
     lodMeshes = [],
     shapeAddresses = [],
     physicsGeometries = [],
@@ -312,6 +313,7 @@ class VegetationChunkGenerator {
 
     this.mesh = new VegetationMesh({
       procGenInstance,
+      vegetationAppDataArray,
       lodMeshes,
       shapeAddresses,
       physicsGeometries,
@@ -339,12 +341,38 @@ class VegetationChunkGenerator {
   }
 }
 
+class VegetationAppData{
+  constructor( name, lods, type, physics)
+  {
+    this.name = name;
+    this.lods = lods;
+    this.type = type;
+    this.shapeAddress = this.getShapeAdress(physics);
+    this.physicsGeometry = this.getPhysicsGeometry(physics);
+  }
+  getShapeAdress(physics){
+    const lastMesh = this.lods.findLast(lod => lod !== null);
+    const buffer = physics.cookConvexGeometry(lastMesh);
+    const shapeAddress = physics.createConvexShape(buffer);
+    return shapeAddress;
+  }
+  getPhysicsGeometry(physics){
+    const physicsObject = physics.addConvexShape(this.shapeAddress, new THREE.Vector3(), new THREE.Quaternion(), new THREE.Vector3(1,1,1), false, true);
+    const geometry = physicsObject.physicsMesh.geometry;
+    physics.removeGeometry(physicsObject);
+    return geometry;
+  }
+}
+
 export default e => {
   const app = useApp();
   const physics = usePhysics();
   const procGenManager = useProcGenManager();
   const world = useWorld();
   const meshLodManager = useMeshLodder();
+  const lodItem = useDefaultModules().modules.meshLodItem;
+
+  console.log(lodItem)
 
   app.name = 'vegetation';
 
@@ -360,6 +388,8 @@ export default e => {
       new THREE.Vector3(range[1][0], range[1][1], range[1][2])
     );
   }
+
+  
 
   let generator = null;
   let tracker = null;
@@ -411,17 +441,12 @@ export default e => {
 
 
     const lodMeshes = [];
+
     for (const name in specs) {
       const spec = specs[name];
       lodMeshes.push(spec.lods);
     }
     // physics
-
-
-    
-
-
-
 
     const shapeAddresses = lodMeshes.map(lods => {
       const lastMesh = lods.findLast(lod => lod !== null);
@@ -438,22 +463,37 @@ export default e => {
       return geom;
     })
 
-    
-    //console.log(physicsObjects)
-    //console.log(physicsGeometries)
-    //console.log(physics.addConvexShape)
-    //end new
+    const vegetationAppDataArray = [];
+    for (const name in specs) {
+      const spec = specs[name];
+      vegetationAppDataArray.push (new VegetationAppData(name, spec.lods, spec.type, physics))
+    }
+
+    // console.log(vegetationAppDatas);
+
+    //shape adress
+    //physics geometry
+    //app name
+    // ideally:
+    // generator = new VegetationChunkGenerator(this, {
+    //   procGenInstance,
+    //   vegetationAppDataArray
+    //   physics
+    // });
 
     // generator
     const procGenInstance = procGenManager.getInstance(seed, range);
 
     generator = new VegetationChunkGenerator(this, {
       procGenInstance,
+      vegetationAppDataArray,
       lodMeshes,
       shapeAddresses,
       physicsGeometries,
       physics
     });
+
+    
     const numLods = 1;
     tracker = procGenInstance.getChunkTracker({
       //minLodRange:numLods
@@ -578,12 +618,12 @@ export default e => {
         },
       ],
     );
+    app.wear();
     return app;
   };
 
 
   useActivate((e)=>{
-    console.log(e);
     generator.mesh.grabInstance(e.physicsId);
     //test();
     _loadMeshLodApp(e.physicsId);
