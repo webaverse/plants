@@ -45,19 +45,24 @@ const {createTextureAtlas} = useAtlasing();
 class VegetationMesh extends InstancedBatchedMesh {
   constructor({
     procGenInstance,
+    vegetationAppDataArray =[],
     lodMeshes = [],
     shapeAddresses = [],
     physicsGeometries = [],
     physics = null,
   } = {}) {
     // instancing
+
+
     const {
       atlasTextures,
       geometries: lod0Geometries,
-    } = createTextureAtlas(lodMeshes.map(lods => lods[0]), {
+    } = createTextureAtlas(vegetationAppDataArray.map(vegetationApp => vegetationApp.lods[0]),{
       textures: ['map', 'normalMap'],
       attributes: ['position', 'normal', 'uv'],
-    });
+    })
+
+    // console.log(atlasTextures)
     //console.log(chunkGenerator);
     // allocator
 
@@ -159,9 +164,10 @@ vec4 q = texture2D(qTexture, pUv).xyzw;
     this.frustumCulled = false;
     
     this.procGenInstance = procGenInstance;
-    this.meshes = lodMeshes;
-    this.shapeAddresses = shapeAddresses;
-    this.physicsGeometries = physicsGeometries;
+    //this.meshes = lodMeshes;
+    this.vegetationAppsData = vegetationAppDataArray;
+    //this.shapeAddresses = shapeAddresses;
+    //this.physicsGeometries = physicsGeometries;
     this.physics = physics;
     this.physicsObjects = [];
 
@@ -217,7 +223,7 @@ vec4 q = texture2D(qTexture, pUv).xyzw;
     const drawcalls = [];
     for (let i = 0; i < vegetationData.instances.length; i++) {
       const geometryNoise = vegetationData.instances[i];
-      const geometryIndex = Math.floor(geometryNoise * this.meshes.length);
+      const geometryIndex = Math.floor(geometryNoise * this.vegetationAppsData.length);
       
       localBox.setFromCenterAndSize(
         localVector.set(
@@ -249,10 +255,12 @@ vec4 q = texture2D(qTexture, pUv).xyzw;
   }
   
   #getShapeAddress(geometryIndex) {
-    return this.shapeAddresses[geometryIndex];
+    return this.vegetationAppsData[geometryIndex].shapeAddress;
+    //return this.shapeAddresses[geometryIndex];
   }
   #getShapeGeometry(geometryIndex){
-    return this.physicsGeometries[geometryIndex];
+    return  this.vegetationAppsData[geometryIndex].physicsGeometry;
+    //return this.physicsGeometries[geometryIndex];
   }
   
   #addPhysicsShape(shapeAddress, geometryIndex, px, py, pz, qx, qy, qz, qw) {    
@@ -294,6 +302,7 @@ vec4 q = texture2D(qTexture, pUv).xyzw;
 class VegetationChunkGenerator {
   constructor(parent, {
     procGenInstance = null,
+    vegetationAppDataArray = [],
     lodMeshes = [],
     shapeAddresses = [],
     physicsGeometries = [],
@@ -306,6 +315,7 @@ class VegetationChunkGenerator {
 
     this.mesh = new VegetationMesh({
       procGenInstance,
+      vegetationAppDataArray,
       lodMeshes,
       shapeAddresses,
       physicsGeometries,
@@ -455,10 +465,10 @@ export default e => {
       return geom;
     })
 
-    const vegetationAppDatas = [];
+    const vegetationAppDataArray = [];
     for (const name in specs) {
       const spec = specs[name];
-      vegetationAppDatas.push (new VegetationAppData(name, spec.lods, spec.type, physics))
+      vegetationAppDataArray.push (new VegetationAppData(name, spec.lods, spec.type, physics))
     }
 
     // console.log(vegetationAppDatas);
@@ -478,11 +488,14 @@ export default e => {
 
     generator = new VegetationChunkGenerator(this, {
       procGenInstance,
+      vegetationAppDataArray,
       lodMeshes,
       shapeAddresses,
       physicsGeometries,
       physics
     });
+
+    
     const numLods = 1;
     tracker = procGenInstance.getChunkTracker({
       //minLodRange:numLods
