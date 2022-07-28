@@ -62,9 +62,6 @@ class VegetationMesh extends InstancedBatchedMesh {
       attributes: ['position', 'normal', 'uv'],
     })
 
-    // console.log(atlasTextures)
-    //console.log(chunkGenerator);
-    // allocator
 
     const allocator = new InstancedGeometryAllocator(lod0Geometries, [
       {
@@ -215,8 +212,8 @@ vec4 q = texture2D(qTexture, pUv).xyzw;
       localPhysicsObjects.push(physicsObject);
 
       drawCall.incrementInstanceCount();
-      
-      this.instanceObjects.set(physicsObject.physicsId, drawCall);
+      const appData = this.vegetationAppsData[drawCall.geometryIndex];
+      this.instanceObjects.set(physicsObject.physicsId, {drawCall, appData});
     };
 
       
@@ -262,7 +259,6 @@ vec4 q = texture2D(qTexture, pUv).xyzw;
     return  this.vegetationAppsData[geometryIndex].physicsGeometry;
     //return this.physicsGeometries[geometryIndex];
   }
-  
   #addPhysicsShape(shapeAddress, geometryIndex, px, py, pz, qx, qy, qz, qw) {    
     localVector.set(px, py, pz);
     localQuaternion.set(qx, qy, qz, qw);
@@ -290,8 +286,10 @@ vec4 q = texture2D(qTexture, pUv).xyzw;
   grabInstance(physicsId){
     const phys = metaversefile.getPhysicsObjectByPhysicsId(physicsId);
     this.physics.removeGeometry(phys);
-    const drawcall = this.instanceObjects.get(physicsId);
-    drawcall.decrementInstanceCount();
+    const {drawCall, appData} = this.instanceObjects.get(physicsId);
+    drawCall.decrementInstanceCount();
+    console.log(appData.type)
+    //appData.doSomething or get some info
   }
   getPhysicsObjects() {
     return this.physicsObjects;
@@ -620,15 +618,12 @@ export default e => {
         },
       ],
     );
-    console.log(app);
     app.wear();
     return app;
   };
 
 
   useActivate((e)=>{
-    console.log(e)
-    console.log("khdj");
     generator.mesh.grabInstance(e.physicsId);
     //test();
     _loadMeshLodApp(e.physicsId);
