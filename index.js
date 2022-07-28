@@ -436,23 +436,9 @@ export default e => {
 
     for (const name in specs) {
       const spec = specs[name];
-      console.log(spec.lods);
       lodMeshes.push(spec.lods);
     }
     // physics
-
-
-    // send lod meshes
-    // 
-    
-    
-    //end 
-    for (const name in specs) {
-      const spec = specs[name];
-      console.log(spec.lods);
-      lodMeshes.push(spec.lods);
-    }
-
 
     const shapeAddresses = lodMeshes.map(lods => {
       const lastMesh = lods.findLast(lod => lod !== null);
@@ -472,10 +458,6 @@ export default e => {
     const vegetationAppDatas = [];
     for (const name in specs) {
       const spec = specs[name];
-      console.log(name);
-      console.log(spec.lods);
-      console.log(spec.type);
-      console.log(physics)
       vegetationAppDatas.push (new VegetationAppData(name, spec.lods, spec.type, physics))
     }
 
